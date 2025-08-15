@@ -150,25 +150,6 @@ class _SignupPageState extends State<SignupPage> {
                     style: const TextStyle(color: Colors.redAccent),
                   ),
                 ],
-                const SizedBox(height: 16.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SocialSignInButton(
-                      imagePath: 'images/google_logo.png',
-                      onTap: () {
-                        // TODO: Implement Google sign-in
-                      },
-                    ),
-                    const SizedBox(width: 24),
-                    SocialSignInButton(
-                      imagePath: 'images/facebook_logo.png',
-                      onTap: () {
-                        // TODO: Implement Facebook sign-in
-                      },
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 24.0),
                 TextButton(
                   onPressed: () {
