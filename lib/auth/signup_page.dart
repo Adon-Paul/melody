@@ -1,11 +1,10 @@
+import '../ui elements/glass_toast.dart';
 import 'dart:ui';
 import '../ui elements/pretty_background.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_page.dart';
 import '../ui elements/slide_transition.dart';
-import '../ui elements/social_sign_in_button.dart';
 
 
 class SignupPage extends StatefulWidget {
@@ -20,7 +19,6 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
-  String? _errorMessage;
   bool _isLoading = false;
 
   @override
@@ -171,13 +169,7 @@ class _SignupPageState extends State<SignupPage> {
                                       ),
                                     ),
                             ),
-                            if (_errorMessage != null) ...[
-                              const SizedBox(height: 12),
-                              Text(
-                                _errorMessage!,
-                                style: const TextStyle(color: Colors.redAccent),
-                              ),
-                            ],
+                            // Error message removed: now only shown as toast notification
                             const SizedBox(height: 24.0),
                             TextButton(
                               onPressed: () {
@@ -220,11 +212,9 @@ class _SignupPageState extends State<SignupPage> {
   void _signUp() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
     if (_passwordController.text != _confirmPasswordController.text) {
       setState(() {
-        _errorMessage = 'Passwords do not match.';
         _isLoading = false;
       });
       return;
@@ -239,10 +229,11 @@ class _SignupPageState extends State<SignupPage> {
         await FirebaseAuth.instance.currentUser?.updateDisplayName(_nameController.text.trim());
       }
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'yay success',
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
+        GlassToast.show(
+          context,
+          message: 'yay success',
+          backgroundColor: const Color(0xCC1B5E20),
+          icon: Icons.check_circle_outline,
         );
         Navigator.pushReplacement(
           context,
@@ -250,13 +241,39 @@ class _SignupPageState extends State<SignupPage> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        _errorMessage = e.message;
-      });
+      String errorMsg;
+      switch (e.code) {
+        case 'email-already-in-use':
+          errorMsg = 'An account already exists for that email.';
+          break;
+        case 'invalid-email':
+          errorMsg = 'Please enter a valid email address.';
+          break;
+        case 'operation-not-allowed':
+          errorMsg = 'Sign up is currently disabled. Contact support.';
+          break;
+        case 'weak-password':
+          errorMsg = 'Password is too weak. Please use a stronger password.';
+          break;
+        case 'network-request-failed':
+          errorMsg = 'Network error. Please check your connection.';
+          break;
+        default:
+          errorMsg = 'Could not sign up. Please check your details.';
+      }
+      GlassToast.show(
+        context,
+        message: errorMsg,
+        backgroundColor: Colors.red.withOpacity(0.85),
+        icon: Icons.error_outline,
+      );
     } catch (e) {
-      setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
-      });
+      GlassToast.show(
+        context,
+        message: 'An error occurred. Please try again.',
+        backgroundColor: Colors.red.withOpacity(0.85),
+        icon: Icons.error_outline,
+      );
     } finally {
       setState(() {
         _isLoading = false;

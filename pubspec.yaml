@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  lottie: ^3.1.0
   flutter:
     sdk: flutter
 
@@ -65,6 +66,7 @@ flutter:
   assets:
     - lib/images/google_logo.png
     - lib/images/facebook_logo.png
+    - assets/music play.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

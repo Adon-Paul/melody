@@ -1,8 +1,8 @@
+import '../ui elements/glass_toast.dart';
 import 'dart:ui';
 import '../ui elements/pretty_background.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -14,28 +14,53 @@ class ForgotPasswordPage extends StatefulWidget {
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final TextEditingController _emailController = TextEditingController();
   bool _isLoading = false;
-  String? _errorMessage;
 
   Future<void> _sendResetEmail() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(
         email: _emailController.text.trim(),
       );
       if (mounted) {
-        Fluttertoast.showToast(msg: 'Password reset email sent!');
+        GlassToast.show(
+          context,
+          message: 'Password reset email sent!',
+          backgroundColor: const Color(0xCC1B5E20),
+          icon: Icons.check_circle_outline,
+        );
         Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        _errorMessage = e.message;
-      });
+      String errorMsg;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMsg = 'No account found for that email.';
+          break;
+        case 'invalid-email':
+          errorMsg = 'Please enter a valid email address.';
+          break;
+        case 'network-request-failed':
+          errorMsg = 'Network error. Please check your connection.';
+          break;
+        default:
+          errorMsg = 'Could not send reset email. Please try again.';
+      }
+      GlassToast.show(
+        context,
+        message: errorMsg,
+        backgroundColor: Colors.red.withOpacity(0.85),
+        icon: Icons.error_outline,
+      );
     } catch (e) {
+      GlassToast.show(
+        context,
+        message: 'An error occurred. Please try again.',
+        backgroundColor: Colors.red.withOpacity(0.85),
+        icon: Icons.error_outline,
+      );
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
       });
     } finally {
       setState(() {
@@ -137,13 +162,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                       ),
                               ),
                             ),
-                            if (_errorMessage != null) ...[
-                              const SizedBox(height: 12),
-                              Text(
-                                _errorMessage!,
-                                style: const TextStyle(color: Colors.redAccent),
-                              ),
-                            ],
+                            // Error message removed: now only shown as toast notification
                           ],
                         ),
                       ),

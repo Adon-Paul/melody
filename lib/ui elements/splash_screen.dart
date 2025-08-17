@@ -1,3 +1,4 @@
+import 'package:lottie/lottie.dart';
 
 import 'dart:ui';
 import 'dart:math' as math;
@@ -21,78 +22,95 @@ class SplashScreen extends StatelessWidget {
             );
           }
         },
-        child: Stack(
-          children: [
-            // Animated gradient background
-            const _AnimatedBackground(),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  // Glowing logo
-                  _GlowingLogo(),
-                  const SizedBox(height: 16),
-                  // App name
-                  const Text(
-                    'Melody',
-                    style: TextStyle(
-                      fontFamily: 'serif',
-                      color: Colors.white,
-                      fontSize: 48.0,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                      shadows: [
-                        Shadow(blurRadius: 16, color: Colors.greenAccent, offset: Offset(0, 0)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Subtitle
-                  Text(
-                    'Feel the music. Live the moment.',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 120),
-                  // Button with glass effect
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(50.0),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                      child: FloatingActionButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            SlideRightRoute(page: const LoginPage()),
-                          );
-                        },
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        child: const Icon(
-                          Icons.arrow_forward,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              const _AnimatedBackground(),
+              Center(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      _GlowingLogo(),
+                      const SizedBox(height: 16),
+                      // App name
+                      const Text(
+                        'Melody',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'serif',
                           color: Colors.white,
+                          fontSize: 48.0,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                          shadows: [
+                            Shadow(blurRadius: 16, color: Colors.greenAccent, offset: Offset(0, 0)),
+                          ],
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  // Swipe up hint
-                  Column(
-                    children: const [
-                      Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white70, size: 36),
-                      Text(
-                        'Swipe up to unlock',
-                        style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w400),
+                      const SizedBox(height: 8),
+                      // Subtitle
+                      const Text(
+                        'Feel the music. Live the moment.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      // Lottie music animation
+                      SizedBox(
+                        height: 120,
+                        child: Lottie.asset(
+                          'assets/music play.json',
+                          fit: BoxFit.contain,
+                          repeat: true,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      // Button with glass effect
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(50.0),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                          child: FloatingActionButton(
+                            onPressed: () {
+                              Navigator.pushReplacement(
+                                context,
+                                SlideRightRoute(page: const LoginPage()),
+                              );
+                            },
+                            backgroundColor: Colors.white.withOpacity(0.2),
+                            child: const Icon(
+                              Icons.arrow_upward,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      // Swipe up hint
+                      Column(
+                        children: const [
+                          Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white70, size: 36),
+                          Text(
+                            'Swipe up to unlock',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w400),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
