@@ -6,8 +6,43 @@ import 'package:flutter/material.dart';
 import '../auth/login_page.dart'; // Import your login page
 import 'slide_transition.dart';
 
-class SplashScreen extends StatelessWidget {
+import 'package:firebase_auth/firebase_auth.dart';
+import '../test_page.dart';
+import 'glass_toast.dart';
+
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    await Future.delayed(const Duration(milliseconds: 400)); // Let splash animate a bit
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && mounted) {
+      // Show welcome toast and go to TestPage
+      Future.delayed(const Duration(milliseconds: 200), () {
+        GlassToast.show(
+          context,
+          message: 'Welcome back, ${user.email ?? 'User'}!',
+          backgroundColor: const Color(0xCC1B5E20),
+          icon: Icons.check_circle_outline,
+        );
+        Navigator.pushReplacement(
+          context,
+          SlideUpRoute(page: const TestPage()),
+        );
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +53,7 @@ class SplashScreen extends StatelessWidget {
           if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
             Navigator.pushReplacement(
               context,
-              SlideRightRoute(page: const LoginPage()),
+              SlideUpRoute(page: const LoginPage()),
             );
           }
         },
@@ -82,7 +117,7 @@ class SplashScreen extends StatelessWidget {
                             onPressed: () {
                               Navigator.pushReplacement(
                                 context,
-                                SlideRightRoute(page: const LoginPage()),
+                                SlideUpRoute(page: const LoginPage()),
                               );
                             },
                             backgroundColor: Colors.white.withOpacity(0.2),
@@ -115,7 +150,6 @@ class SplashScreen extends StatelessWidget {
       ),
     );
   }
-
 }
 
 // Animated gradient background

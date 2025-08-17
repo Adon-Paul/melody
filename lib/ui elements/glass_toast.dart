@@ -32,7 +32,11 @@ class GlassToast {
 
     // IMPORTANT: The context passed to GlassToast.show must be from a widget below MaterialApp or Navigator.
     // Otherwise, Overlay.of(context) may throw an assertion error.
-    final overlay = Overlay.of(context);
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) {
+      // Context is not valid for showing a toast (e.g., after navigation)
+      return;
+    }
 
     final entry = OverlayEntry(
       builder: (context) => Positioned(

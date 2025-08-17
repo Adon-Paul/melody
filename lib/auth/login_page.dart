@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 // Import local project files. Ensure these paths are correct in your project structure.
 import 'signup_page.dart';
+
 import '../test_page.dart';
 import '../ui elements/slide_transition.dart';
 import '../ui elements/social_sign_in_button.dart';
@@ -47,7 +48,7 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text.trim(),
       );
 
-      // On success, show a confirmation toast and navigate to the main app page.
+      // On success, show a confirmation toast and navigate to the dashboard page.
       if (mounted) {
         GlassToast.show(
           context,
