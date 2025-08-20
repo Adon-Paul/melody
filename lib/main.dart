@@ -1,31 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
+import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
-import 'ui elements/splash_screen.dart';
+import 'ui/splash/splash_screen.dart';
+import 'core/services/auth_service.dart';
+import 'core/services/music_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Set system UI mode for immersive experience
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  runApp(const MyApp());
+  
+  // Set preferred orientations
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  runApp(const MelodyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MelodyApp extends StatelessWidget {
+  const MelodyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => MusicService()),
+      ],
+      child: MaterialApp(
+        title: 'Melody - Music Reimagined',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        home: const SplashScreen(),
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(1.0),
+            ),
+            child: child!,
+          );
+        },
       ),
-      home: const SplashScreen(),
     );
   }
 }

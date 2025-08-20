@@ -2,14 +2,13 @@ import '../ui elements/glass_toast.dart';
 // Import necessary packages for UI, Firebase, Google Sign-In, and toasts.
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 
 // Import local project files. Ensure these paths are correct in your project structure.
 import 'signup_page.dart';
 
 import '../test_page.dart';
-import '../ui elements/slide_transition.dart';
+import '../core/transitions/page_transitions.dart';
 import '../ui elements/social_sign_in_button.dart';
 import 'dart:ui';
 import '../ui elements/pretty_background.dart';
@@ -59,7 +58,7 @@ class _LoginPageState extends State<LoginPage> {
         // Using pushReplacement prevents the user from navigating back to the login page.
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const TestPage()),
+          PageTransitions.circleMorph(const TestPage()),
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -123,26 +122,18 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn();
-      final GoogleSignInAccount? googleSignInAccount =
-          await googleSignIn.signIn();
-      final GoogleSignInAuthentication? googleSignInAuthentication =
-          await googleSignInAccount?.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-          idToken: googleSignInAuthentication?.idToken,
-          accessToken: googleSignInAuthentication?.accessToken);
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
+      // TODO: Implement Google Sign-in with updated API
+      // Temporarily showing a message
       if (mounted) {
         GlassToast.show(
           context,
-          message: 'Google Sign-In Successful!',
-          backgroundColor: const Color(0xCC1B5E20),
+          message: 'Google Sign-In coming soon!',
+          backgroundColor: const Color(0xCC2196F3),
           icon: Icons.check_circle_outline,
         );
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const TestPage()),
+          PageTransitions.liquidMorph(const TestPage()),
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -385,7 +376,7 @@ class _LoginPageState extends State<LoginPage> {
                                               onTap: () {
                                                 Navigator.push(
                                                   context,
-                                                  SlideRightRoute(page: const SignupPage()),
+                                                  PageTransitions.flip(const SignupPage()),
                                                 );
                                               },
                                               child: const Text(
@@ -422,7 +413,7 @@ class _LoginPageState extends State<LoginPage> {
                                                 onTap: () {
                                                   Navigator.push(
                                                     context,
-                                                    SlideRightRoute(page: const ForgotPasswordPage()),
+                                                    PageTransitions.slideRight(const ForgotPasswordPage()),
                                                   );
                                                 },
                                                 child: const Text(
@@ -457,7 +448,7 @@ class _LoginPageState extends State<LoginPage> {
                                                 onTap: () {
                                                   Navigator.pushReplacement(
                                                     context,
-                                                    SlideRightRoute(page: const TestPage()),
+                                                    PageTransitions.glitch(const TestPage()),
                                                   );
                                                 },
                                                 child: const Text(

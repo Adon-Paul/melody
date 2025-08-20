@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'auth/login_page.dart';
 
 import 'device_music_page.dart';
+import 'core/transitions/page_transitions.dart';
+import 'core/demo/transition_demo_page.dart';
 
 import 'package:flutter/material.dart';
 
@@ -36,7 +38,7 @@ class TestPage extends StatelessWidget {
                 await Future.delayed(const Duration(milliseconds: 900));
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  PageTransitions.particleDissolve(const LoginPage()),
                   (route) => false,
                 );
               }
@@ -54,6 +56,22 @@ class TestPage extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
+              icon: const Icon(Icons.animation),
+              label: const Text('Transition Demo'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  PageTransitions.circleMorph(const TransitionDemoPage()),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
               icon: const Icon(Icons.library_music),
               label: const Text('Device Music'),
               style: ElevatedButton.styleFrom(
@@ -64,7 +82,7 @@ class TestPage extends StatelessWidget {
               ),
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const DeviceMusicPage()),
+                  PageTransitions.flip(const DeviceMusicPage(), horizontal: false),
                 );
               },
             ),

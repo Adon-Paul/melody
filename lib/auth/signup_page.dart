@@ -4,7 +4,7 @@ import '../ui elements/pretty_background.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_page.dart';
-import '../ui elements/slide_transition.dart';
+import '../core/transitions/page_transitions.dart';
 
 
 class SignupPage extends StatefulWidget {
@@ -175,7 +175,7 @@ class _SignupPageState extends State<SignupPage> {
                               onPressed: () {
                                 Navigator.pushReplacement(
                                   context,
-                                  SlideLeftRoute(page: const LoginPage()),
+                                  PageTransitions.slideLeft(const LoginPage()),
                                 );
                               },
                               child: RichText(
@@ -237,7 +237,7 @@ class _SignupPageState extends State<SignupPage> {
         );
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
+          PageTransitions.particleDissolve(const LoginPage()),
         );
       }
     } on FirebaseAuthException catch (e) {

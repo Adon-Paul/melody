@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../auth/login_page.dart'; // Import your login page
-import 'slide_transition.dart';
+import '../core/transitions/page_transitions.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import '../test_page.dart';
@@ -38,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen> {
         );
         Navigator.pushReplacement(
           context,
-          SlideUpRoute(page: const TestPage()),
+          PageTransitions.circleMorph(const TestPage()),
         );
       });
     }
@@ -53,7 +53,7 @@ class _SplashScreenState extends State<SplashScreen> {
           if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
             Navigator.pushReplacement(
               context,
-              SlideUpRoute(page: const LoginPage()),
+              PageTransitions.slideUp(const LoginPage()),
             );
           }
         },
@@ -117,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen> {
                             onPressed: () {
                               Navigator.pushReplacement(
                                 context,
-                                SlideUpRoute(page: const LoginPage()),
+                                PageTransitions.liquidMorph(const LoginPage()),
                               );
                             },
                             backgroundColor: Colors.white.withOpacity(0.2),

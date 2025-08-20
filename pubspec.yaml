@@ -28,34 +28,49 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-  lottie: ^3.1.0
+  lottie: ^3.1.2
   flutter:
     sdk: flutter
 
-  device_info_plus: ^10.1.0
-
-  permission_handler: ^11.0.1
-  path_provider: ^2.1.2
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+  # Core Firebase & Auth
   firebase_core: ^4.0.0
   firebase_auth: ^6.0.1
-  fluttertoast: ^8.2.12
-  google_sign_in: ^5.4.4
+  google_sign_in: ^7.1.1
+
+  # Device & File System
+  device_info_plus: ^11.5.0
+  permission_handler: ^12.0.1
+  path_provider: ^2.1.4
+  
+  # UI/UX Enhancements
+  cupertino_icons: ^1.0.8
+  flutter_animate: ^4.5.0
+  shimmer: ^3.0.0
+  cached_network_image: ^3.4.1
+  flutter_staggered_animations: ^1.1.1
+  glassmorphism: ^3.0.0
+  flutter_svg: ^2.0.15
+  
+  # State Management & Utils
+  provider: ^6.1.2
+  shared_preferences: ^2.3.3
+  
+  # Audio & Media
+  just_audio: ^0.10.4
+  audio_session: ^0.2.2
+  rxdart: ^0.28.0
+  
+  # Icons & Theming
   flutter_launcher_icons: ^0.14.4
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  # Enhanced linting for better code quality
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -70,9 +85,10 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - lib/images/google_logo.png
-    - lib/images/facebook_logo.png
-    - assets/music play.json
+    - lib/images/
+    - assets/
+    - assets/animations/
+    - assets/icons/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
