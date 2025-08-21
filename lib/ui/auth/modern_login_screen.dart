@@ -6,11 +6,11 @@ import '../../core/widgets/animated_background.dart';
 import '../../core/widgets/modern_button.dart';
 import '../../core/widgets/modern_text_field.dart';
 import '../../core/widgets/modern_toast.dart';
+import '../../core/widgets/password_reset_dialog.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/transitions/page_transitions.dart';
-import '../../test_page.dart';
-import '../../auth/signup_page.dart';
-import '../../auth/forgot_password_page.dart';
+import '../home/home_screen.dart';
+import 'signup_screen.dart';
 
 class ModernLoginScreen extends StatefulWidget {
   const ModernLoginScreen({super.key});
@@ -81,7 +81,7 @@ class _ModernLoginScreenState extends State<ModernLoginScreen>
         
         Navigator.pushReplacement(
           context,
-          PageTransitions.circleMorph(const TestPage()),
+          PageTransitions.circleMorph(const HomeScreen()),
         );
       } else if (authService.errorMessage != null) {
         ModernToast.showError(
@@ -108,7 +108,7 @@ class _ModernLoginScreenState extends State<ModernLoginScreen>
         
         Navigator.pushReplacement(
           context,
-          PageTransitions.liquidMorph(const TestPage()),
+          PageTransitions.liquidMorph(const HomeScreen()),
         );
       } else if (authService.errorMessage != null) {
         ModernToast.showInfo(
@@ -127,7 +127,7 @@ class _ModernLoginScreenState extends State<ModernLoginScreen>
     
     Navigator.pushReplacement(
       context,
-      PageTransitions.glitch(const TestPage()),
+      PageTransitions.glitch(const HomeScreen()),
     );
   }
 
@@ -252,9 +252,9 @@ class _ModernLoginScreenState extends State<ModernLoginScreen>
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
                                       onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          PageTransitions.slideRight(const ForgotPasswordPage()),
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => const PasswordResetDialog(),
                                         );
                                       },
                                       child: Text(
@@ -348,7 +348,7 @@ class _ModernLoginScreenState extends State<ModernLoginScreen>
                           onPressed: () {
                             Navigator.push(
                               context,
-                              PageTransitions.flip(const SignupPage()),
+                              PageTransitions.flip(const SignUpScreen()),
                             );
                           },
                           child: Text(

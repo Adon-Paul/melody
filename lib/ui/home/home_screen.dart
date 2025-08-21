@@ -1,77 +1,303 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/animated_background.dart';
+import '../../core/widgets/modern_button.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/music_service.dart';
+import '../../core/transitions/page_transitions.dart';
+import '../../core/demo/transition_demo_page.dart';
+import '../../ui/auth/login_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Auto-load music files when entering home screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MusicService>().loadSongs();
+    });
+  }
+
+  Future<void> _handleSignOut() async {
+    final authService = context.read<AuthService>();
+    await authService.signOut();
+    
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        PageTransitions.particleDissolve(const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'MELODY',
+          style: AppTheme.headlineMedium.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+        backgroundColor: AppTheme.backgroundColor,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: _handleSignOut,
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sign Out',
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           const AnimatedBackground(),
           SafeArea(
-            child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryColor.withOpacity(0.3),
-                          blurRadius: 30,
-                          offset: const Offset(0, 15),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.music_note,
-                      size: 60,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'Welcome to MELODY',
-                    style: AppTheme.displayMedium.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,  // Use theme color instead of white
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Your musical journey begins here',
-                    style: AppTheme.bodyLarge.copyWith(
-                      color: AppTheme.textSecondary,  // Use theme color
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 48),
+                  // Welcome Header
                   Container(
                     padding: const EdgeInsets.all(24),
-                    margin: const EdgeInsets.symmetric(horizontal: 32),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceColor,  // Dark surface
-                      borderRadius: BorderRadius.circular(20),
+                      color: AppTheme.surfaceColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                       border: Border.all(
                         color: AppTheme.primaryColor.withOpacity(0.3),
                         width: 1,
                       ),
                     ),
-                    child: Text(
-                      'Home screen is coming soon!\nStay tuned for amazing features.',
-                      style: AppTheme.bodyMedium.copyWith(
-                        color: AppTheme.textPrimary,  // Use theme color
-                        height: 1.5,
-                      ),
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.primaryGradient,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withOpacity(0.3),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.music_note,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Welcome to MELODY',
+                          style: AppTheme.headlineMedium.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Your musical journey begins here',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Music Status Card
+                  Consumer<MusicService>(
+                    builder: (context, musicService, child) {
+                      return Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceColor,
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                          border: Border.all(
+                            color: AppTheme.primaryColor.withOpacity(0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.library_music,
+                                  color: AppTheme.primaryColor,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Device Music',
+                                  style: AppTheme.headlineMedium.copyWith(
+                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            if (musicService.isLoading)
+                              Row(
+                                children: [
+                                  const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Scanning for music files...',
+                                    style: AppTheme.bodyMedium.copyWith(
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else if (musicService.errorMessage != null)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        color: AppTheme.errorColor,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          musicService.errorMessage!,
+                                          style: AppTheme.bodySmall.copyWith(
+                                            color: AppTheme.errorColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ModernButton(
+                                    text: 'Retry',
+                                    onPressed: () => musicService.loadSongs(),
+                                    variant: ButtonVariant.outlined,
+                                    iconData: Icons.refresh,
+                                  ),
+                                ],
+                              )
+                            else
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: AppTheme.successColor,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '${musicService.songs.length} songs found',
+                                        style: AppTheme.bodyMedium.copyWith(
+                                          color: AppTheme.successColor,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (musicService.songs.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Recent songs:',
+                                      style: AppTheme.bodySmall.copyWith(
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ...musicService.songs.take(3).map((song) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.music_note,
+                                            size: 16,
+                                            color: AppTheme.textSecondary,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              song.title,
+                                              style: AppTheme.bodySmall.copyWith(
+                                                color: AppTheme.textSecondary,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )).toList(),
+                                  ],
+                                ],
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ModernButton(
+                          text: 'Transition Demo',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              PageTransitions.circleMorph(const TransitionDemoPage()),
+                            );
+                          },
+                          variant: ButtonVariant.filled,
+                          iconData: Icons.animation,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ModernButton(
+                          text: 'Refresh Music',
+                          onPressed: () {
+                            context.read<MusicService>().loadSongs();
+                          },
+                          variant: ButtonVariant.outlined,
+                          iconData: Icons.refresh,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

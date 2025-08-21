@@ -32,6 +32,8 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+android/app/build/
+android/build/
 
 # Symbolication related
 app.*.symbols
