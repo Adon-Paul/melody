@@ -25,7 +25,7 @@ class TransitionDemoPage extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppTheme.cardColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.textSecondary.withOpacity(0.2)),
+                    border: Border.all(color: AppTheme.textSecondary.withValues(alpha: 0.2)),
                   ),
                   child: Column(
                     children: [
@@ -194,7 +194,7 @@ class _TransitionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: gradientColors.first.withOpacity(0.3),
+              color: gradientColors.first.withValues(alpha: 0.3),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -267,10 +267,10 @@ class DemoTargetPage extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppTheme.cardColor,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppTheme.textSecondary.withOpacity(0.2)),
+                    border: Border.all(color: AppTheme.textSecondary.withValues(alpha: 0.2)),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),

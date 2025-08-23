@@ -7,7 +7,7 @@ import '../../core/widgets/animated_background.dart';
 import '../../core/widgets/modern_toast.dart';
 import '../../core/services/auth_service.dart';
 import '../auth/login_screen.dart';
-import '../../test_page.dart';
+import '../home/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -91,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
           context,
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) =>
-                const TestPage(),
+                const HomeScreen(),
             transitionDuration: const Duration(milliseconds: 800),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
@@ -195,7 +195,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 shadows: [
                                   Shadow(
                                     blurRadius: 20,
-                                    color: AppTheme.primaryColor.withOpacity(0.5),
+                                    color: AppTheme.primaryColor.withValues(alpha: 0.5),
                                     offset: const Offset(0, 0),
                                   ),
                                 ],
@@ -264,7 +264,7 @@ class _SplashScreenState extends State<SplashScreen>
                             Text(
                               'or tap anywhere',
                               style: AppTheme.bodySmall.copyWith(
-                                color: AppTheme.textSecondary.withOpacity(0.6),
+                                color: AppTheme.textSecondary.withValues(alpha: 0.6),
                                 fontSize: 12,
                               ),
                             ),

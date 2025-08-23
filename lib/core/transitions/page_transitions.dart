@@ -474,7 +474,7 @@ class ParticlePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
+      ..color = Colors.white.withValues(alpha: 0.1)
       ..strokeWidth = 1;
 
     final random = math.Random(42); // Fixed seed for consistent animation
@@ -484,7 +484,7 @@ class ParticlePainter extends CustomPainter {
       final y = random.nextDouble() * size.height;
       final opacity = (progress * random.nextDouble()).clamp(0.0, 1.0);
       
-      paint.color = Colors.white.withOpacity(opacity * 0.3);
+      paint.color = Colors.white.withValues(alpha: opacity * 0.3);
       canvas.drawCircle(
         Offset(x, y),
         random.nextDouble() * 3 + 1,

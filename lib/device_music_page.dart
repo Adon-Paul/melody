@@ -133,7 +133,7 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
                   ? const Center(child: Text('No music files found.', style: TextStyle(color: Colors.white70)))
                   : ListView.separated(
                       itemCount: _musicFiles.length,
-                      separatorBuilder: (_, __) => const Divider(color: Colors.white12, height: 1),
+                      separatorBuilder: (context, index) => const Divider(color: Colors.white12, height: 1),
                       itemBuilder: (context, i) {
                         final file = _musicFiles[i];
                         final name = file.path.split(Platform.pathSeparator).last;

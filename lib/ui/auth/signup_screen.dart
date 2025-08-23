@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -88,7 +89,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 padding: const EdgeInsets.all(24.0),
                 child: Card(
                   elevation: 20,
-                  shadowColor: AppTheme.primaryColor.withOpacity(0.3),
+                  shadowColor: AppTheme.primaryColor.withValues(alpha: 0.3),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -99,7 +100,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       borderRadius: BorderRadius.circular(20),
                       color: AppTheme.surfaceColor,  // Dark surface instead of white
                       border: Border.all(
-                        color: AppTheme.primaryColor.withOpacity(0.2),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
                         width: 1,
                       ),
                     ),
@@ -117,7 +118,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppTheme.primaryColor.withOpacity(0.3),
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -260,7 +261,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             children: [
                               Expanded(
                                 child: Divider(
-                                  color: AppTheme.textSecondary.withOpacity(0.3),
+                                  color: AppTheme.textSecondary.withValues(alpha: 0.3),
                                 ),
                               ),
                               Padding(
@@ -274,7 +275,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               ),
                               Expanded(
                                 child: Divider(
-                                  color: AppTheme.textSecondary.withOpacity(0.3),
+                                  color: AppTheme.textSecondary.withValues(alpha: 0.3),
                                 ),
                               ),
                             ],
@@ -282,46 +283,115 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           const SizedBox(height: 24),
 
                           // Google Sign Up Button
-                          ModernButton(
-                            text: 'Continue with Google',
-                            onPressed: () async {
+                          GestureDetector(
+                            onTap: () async {
+                              final authService = context.read<AuthService>();
+                              final navigator = Navigator.of(context);
+                              final scaffoldMessenger = ScaffoldMessenger.of(context);
+                              
                               try {
-                                final authService = context.read<AuthService>();
                                 final credential = await authService.signInWithGoogle();
                                 
-                                if (credential != null && mounted) {
-                                  ModernToast.show(
-                                    context,
-                                    'Welcome! Account created successfully.',
-                                    type: ToastType.success,
-                                  );
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const HomeScreen()),
-                                  );
-                                } else if (mounted) {
+                                if (credential != null) {
+                                  if (mounted) {
+                                    scaffoldMessenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Welcome! Account created successfully.'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                    navigator.pushReplacement(
+                                      MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                    );
+                                  }
+                                } else {
                                   // Error message will be handled by AuthService
                                   final errorMessage = authService.errorMessage;
-                                  if (errorMessage != null) {
-                                    ModernToast.show(
-                                      context,
-                                      errorMessage,
-                                      type: ToastType.error,
+                                  if (errorMessage != null && mounted) {
+                                    scaffoldMessenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(errorMessage),
+                                        backgroundColor: Colors.red,
+                                      ),
                                     );
                                   }
                                 }
                               } catch (e) {
                                 if (mounted) {
-                                  ModernToast.show(
-                                    context,
-                                    'Google sign-up failed: ${e.toString()}',
-                                    type: ToastType.error,
+                                  scaffoldMessenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('Google sign-up failed: ${e.toString()}'),
+                                      backgroundColor: Colors.red,
+                                    ),
                                   );
                                 }
                               }
                             },
-                            variant: ButtonVariant.outlined,
-                            iconData: Icons.g_mobiledata,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  width: 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Icon(
+                                          Icons.g_mobiledata,
+                                          color: Colors.black87,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Continue with Google',
+                                        style: AppTheme.titleMedium.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Continue as Guest Button
+                          ModernButton(
+                            text: 'Continue as Guest',
+                            onPressed: () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                              );
+                            },
+                            variant: ButtonVariant.text,
+                            iconData: Icons.person_outline,
                             width: double.infinity,
                           ),
                           const SizedBox(height: 24),

@@ -8,6 +8,7 @@ import '../../core/services/music_service.dart';
 import '../../core/transitions/page_transitions.dart';
 import '../../core/demo/transition_demo_page.dart';
 import '../../ui/auth/login_screen.dart';
+import '../device_music_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -76,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: AppTheme.surfaceColor,
                       borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                       border: Border.all(
-                        color: AppTheme.primaryColor.withOpacity(0.3),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -90,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.primaryColor.withOpacity(0.3),
+                                color: AppTheme.primaryColor.withValues(alpha: 0.3),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
@@ -128,36 +129,50 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Music Status Card
                   Consumer<MusicService>(
                     builder: (context, musicService, child) {
-                      return Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surfaceColor,
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                          border: Border.all(
-                            color: AppTheme.primaryColor.withOpacity(0.2),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.library_music,
-                                  color: AppTheme.primaryColor,
-                                  size: 24,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Device Music',
-                                  style: AppTheme.headlineMedium.copyWith(
-                                    color: AppTheme.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ],
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            PageTransitions.slideUp(const DeviceMusicPage()),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceColor,
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                            border: Border.all(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.2),
                             ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.library_music,
+                                    color: AppTheme.primaryColor,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Device Music',
+                                      style: AppTheme.headlineMedium.copyWith(
+                                        color: AppTheme.textPrimary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_forward_ios,
+                                    color: AppTheme.textSecondary,
+                                    size: 16,
+                                  ),
+                                ],
+                              ),
                             const SizedBox(height: 12),
                             if (musicService.isLoading)
                               Row(
@@ -258,11 +273,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ],
                                       ),
-                                    )).toList(),
+                                    )),
                                   ],
                                 ],
                               ),
                           ],
+                        ),
                         ),
                       );
                     },
