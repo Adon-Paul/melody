@@ -11,12 +11,13 @@ import 'core/services/music_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
+  // Initialize Firebase for authentication and backend services
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
   // Set system UI mode for immersive experience
+  // Test PR: Added comment for better code documentation
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   
   // Set preferred orientations
