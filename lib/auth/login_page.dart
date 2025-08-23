@@ -1,5 +1,6 @@
 import '../ui elements/glass_toast.dart';
 // Import necessary packages for UI, Firebase, Google Sign-In, and toasts.
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -122,13 +123,13 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // TODO: Implement Google Sign-in with updated API
-      // Temporarily showing a message
-      if (mounted) {
+      final authResult = await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+      
+      if (mounted && authResult.user != null) {
         GlassToast.show(
           context,
-          message: 'Google Sign-In coming soon!',
-          backgroundColor: const Color(0xCC2196F3),
+          message: 'Google Sign-In successful! Welcome ${authResult.user!.displayName ?? authResult.user!.email}',
+          backgroundColor: const Color(0xCC4CAF50),
           icon: Icons.check_circle_outline,
         );
         Navigator.pushReplacement(
@@ -154,6 +155,12 @@ class _LoginPageState extends State<LoginPage> {
         case 'network-request-failed':
           errorMsg = 'Network error. Please check your connection.';
           break;
+        case 'popup-closed-by-user':
+          errorMsg = 'Sign-in was cancelled.';
+          break;
+        case 'popup-blocked':
+          errorMsg = 'Pop-up was blocked. Please allow pop-ups and try again.';
+          break;
         default:
           errorMsg = 'Google sign-in failed. Please try again.';
       }
@@ -167,11 +174,17 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMsg = 'Google sign-in is not available on this platform. Please use email/password authentication.';
+        
+        if (kIsWeb) {
+          errorMsg = 'Google sign-in failed. Please try again.';
+        }
+        
         GlassToast.show(
           context,
-          message: 'Google sign-in failed. Please try again.',
-          backgroundColor: Colors.red.withOpacity(0.85),
-          icon: Icons.error_outline,
+          message: errorMsg,
+          backgroundColor: Colors.orange.withOpacity(0.85),
+          icon: Icons.info_outline,
         );
       }
     } finally {

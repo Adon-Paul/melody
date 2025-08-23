@@ -35,7 +35,7 @@ dependencies:
   # Core Firebase & Auth
   firebase_core: ^4.0.0
   firebase_auth: ^6.0.1
-  google_sign_in: ^7.1.1
+  google_sign_in: ^6.2.1
 
   # Device & File System
   device_info_plus: ^11.5.0
@@ -88,7 +88,6 @@ flutter:
     - lib/images/
     - assets/
     - assets/animations/
-    - assets/icons/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

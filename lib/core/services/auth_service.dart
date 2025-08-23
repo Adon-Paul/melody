@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -109,11 +110,31 @@ class AuthService extends ChangeNotifier {
       
       if (credential != null) {
         await _saveUserPreferences();
+        return credential;
+      } else {
+        // User cancelled or authentication failed silently
+        _setError('Google sign-in was cancelled or failed. Please try again.');
+        return null;
+      }
+    } on Exception catch (e) {
+      // Handle specific exceptions with user-friendly messages
+      String errorMessage = e.toString();
+      
+      if (errorMessage.contains('not available on this platform')) {
+        _setError('Google Sign-In is not available on this platform. Please use email/password authentication.');
+      } else if (errorMessage.contains('not properly configured')) {
+        _setError('Google Sign-In setup is incomplete. Please contact support or use email/password authentication.');
+      } else if (errorMessage.contains('network')) {
+        _setError('Network error occurred. Please check your internet connection and try again.');
+      } else if (errorMessage.contains('cancelled')) {
+        _setError('Google sign-in was cancelled.');
+      } else {
+        _setError('Google sign-in failed. Please try again or use email/password authentication.');
       }
       
-      return credential;
+      return null;
     } catch (e) {
-      _setError('Google sign-in failed: ${e.toString()}');
+      _setError('An unexpected error occurred during Google sign-in. Please try again.');
       return null;
     } finally {
       _setLoading(false);
@@ -143,6 +164,16 @@ class AuthService extends ChangeNotifier {
   Future<void> signOut() async {
     try {
       _setLoading(true);
+      
+      // Sign out from Google Sign-In if user was signed in with Google
+      try {
+        await GoogleSignInService.signOut();
+      } catch (e) {
+        debugPrint('Google sign-out failed: $e');
+        // Continue with Firebase sign out even if Google sign out fails
+      }
+      
+      // Sign out from Firebase
       await _auth.signOut();
       await _clearUserPreferences();
     } catch (e) {

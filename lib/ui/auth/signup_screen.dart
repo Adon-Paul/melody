@@ -284,12 +284,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           // Google Sign Up Button
                           ModernButton(
                             text: 'Continue with Google',
-                            onPressed: () {
-                              ModernToast.show(
-                                context,
-                                'Google Sign-up coming soon!',
-                                type: ToastType.info,
-                              );
+                            onPressed: () async {
+                              try {
+                                final authService = context.read<AuthService>();
+                                final credential = await authService.signInWithGoogle();
+                                
+                                if (credential != null && mounted) {
+                                  ModernToast.show(
+                                    context,
+                                    'Welcome! Account created successfully.',
+                                    type: ToastType.success,
+                                  );
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                  );
+                                } else if (mounted) {
+                                  // Error message will be handled by AuthService
+                                  final errorMessage = authService.errorMessage;
+                                  if (errorMessage != null) {
+                                    ModernToast.show(
+                                      context,
+                                      errorMessage,
+                                      type: ToastType.error,
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ModernToast.show(
+                                    context,
+                                    'Google sign-up failed: ${e.toString()}',
+                                    type: ToastType.error,
+                                  );
+                                }
+                              }
                             },
                             variant: ButtonVariant.outlined,
                             iconData: Icons.g_mobiledata,
