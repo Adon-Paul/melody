@@ -5,6 +5,41 @@ All notable changes to the MELODY music app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-beta.1] - 2025-08-24
+
+### 🖥️ Windows Desktop Beta Release
+
+#### 🚀 **New Platform Support**
+- **Windows Desktop Application**: Complete MELODY experience on Windows 10/11
+- **Native Windows Integration**: Desktop-optimized interface and functionality
+- **High-DPI Display Support**: Crystal clear on 4K and high-resolution monitors
+- **Multi-Window Support**: Resizable windows for optimal desktop workflow
+
+#### 🎵 **Desktop Music Features**
+- **Complete Music System**: All mobile features available on Windows desktop
+- **Local Music Library**: Scan and organize Windows music folders efficiently
+- **Desktop Audio Engine**: High-quality audio playback optimized for desktop
+- **Keyboard Navigation**: Desktop-optimized controls and shortcuts
+
+#### 🎨 **Desktop UI/UX**
+- **Responsive Design**: Adapts to different window sizes and screen resolutions
+- **Windows 11 Integration**: Native look and feel with Windows design language
+- **Professional Interface**: Full-screen and windowed music experience
+- **Performance Optimized**: Smooth animations on desktop hardware
+
+#### ⚠️ **Beta Status**
+- This is a beta release for testing desktop functionality
+- Some Windows-specific features still in development
+- Feedback welcome for improving desktop experience
+
+### 🔧 **Technical Desktop Implementation**
+- Flutter Windows desktop framework integration
+- Native Windows build pipeline configuration
+- Desktop-specific audio session handling
+- Windows file system integration
+
+---
+
 ## [2.0.0] - 2025-08-24
 
 ### 🚀 Major Features Added
