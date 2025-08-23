@@ -7,6 +7,7 @@ import 'firebase_options.dart';
 import 'ui/splash/splash_screen.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/music_service.dart';
+import 'core/services/favorites_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,7 @@ class MelodyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => MusicService()),
+        ChangeNotifierProvider(create: (_) => FavoritesService()),
       ],
       child: MaterialApp(
         title: 'Melody - Music Reimagined',

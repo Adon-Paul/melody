@@ -1,18 +1,21 @@
-# 🎵 MELODY - Music App with Creative Transitions
+# 🎵 MELODY - Music App with Advanced Transitions
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg)](https://flutter.dev/)
 [![Firebase](https://img.shields.io/badge/Firebase-Ready-orange.svg)](https://firebase.google.com/)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web%20%7C%20Desktop-lightgrey.svg)](https://flutter.dev/multi-platform)
 
-**MELODY** is a modern music streaming app built with Flutter, featuring stunning page transitions, ultra-dark UI design, and comprehensive music management capabilities.
+**MELODY** is a modern music streaming app built with Flutter, featuring stunning advanced transitions, ultra-dark UI design, and comprehensive music management capabilities.
 
 ## 🌟 Key Features
 
-### 🎬 **Revolutionary Page Transitions**
-- **8 Creative Transition Effects**: Morphing slides, 3D flips, circle morphs, liquid flows, particle dissolves, and glitch effects
-- **Hardware Accelerated**: Smooth 60fps performance with GPU optimization
-- **Contextual Usage**: Different transitions for different navigation contexts
-- **Interactive Demo**: Built-in showcase to test all transition effects
+### 🎬 **Advanced 3D Transitions**
+- **3D Flip Transitions**: Realistic card-flip effects with perspective
+- **Morph Animations**: Smooth morphing from mini player to full screen
+- **Liquid Morphing**: Organic liquid-like page transitions
+- **Cube Rotations**: 3D cube transitions between sections
+- **Fold Transitions**: Paper-folding effects
+- **Scale Rotate**: Combined scaling and rotation with elastic easing
+- **Hardware Accelerated**: 60fps performance with GPU optimization
 
 ### 🎨 **Modern UI/UX**
 - **Ultra-Dark Theme**: Pure black background with emerald green accents

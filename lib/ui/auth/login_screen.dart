@@ -164,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Colors.white,
                             ),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
 
                           // Welcome Text
                           Text(
@@ -182,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 20),
 
                           // Email Field
                           ModernTextField(
@@ -231,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
 
                           // Login Button
                           ModernButton(
@@ -240,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             isLoading: _isLoading,
                             width: double.infinity,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
 
                           // Forgot Password
                           TextButton(
@@ -258,7 +258,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
 
                           // Divider
                           Row(
@@ -284,7 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
 
                           // Google Sign In Button
                           GestureDetector(
@@ -341,7 +341,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
 
                           // Continue as Guest Button
                           ModernButton(
@@ -356,7 +356,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             iconData: Icons.person_outline,
                             width: double.infinity,
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
 
                           // Sign Up Link
                           Row(

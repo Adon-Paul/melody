@@ -59,6 +59,7 @@ dependencies:
   just_audio: ^0.10.4
   audio_session: ^0.2.2
   rxdart: ^0.28.0
+  audio_metadata_reader: ^1.4.2
   
   # Icons & Theming
   flutter_launcher_icons: ^0.14.4
