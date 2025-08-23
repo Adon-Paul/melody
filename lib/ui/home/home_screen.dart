@@ -275,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Expanded(
                         child: ModernButton(
-                          text: 'Transition Demo',
+                          text: 'Transitions',
                           onPressed: () {
                             Navigator.push(
                               context,
@@ -289,7 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ModernButton(
-                          text: 'Refresh Music',
+                          text: 'Refresh',
                           onPressed: () {
                             context.read<MusicService>().loadSongs();
                           },
