@@ -39,7 +39,12 @@ class ModernToast {
     IconData? icon,
     VoidCallback? onTap,
   }) {
-    _currentToast?.remove();
+    // Safely remove current toast if it exists
+    try {
+      _currentToast?.remove();
+    } catch (e) {
+      // Overlay might have been disposed, ignore error
+    }
     _currentToast = null;
 
     final overlay = Overlay.maybeOf(context);
@@ -73,8 +78,13 @@ class ModernToast {
     _currentToast = entry;
 
     Timer(duration, () {
-      entry.remove();
-      if (_currentToast == entry) {
+      try {
+        if (_currentToast == entry) {
+          entry.remove();
+          _currentToast = null;
+        }
+      } catch (e) {
+        // Overlay might have been disposed, just clear our reference
         _currentToast = null;
       }
     });
@@ -149,7 +159,11 @@ class ModernToast {
   }
 
   static void hide() {
-    _currentToast?.remove();
+    try {
+      _currentToast?.remove();
+    } catch (e) {
+      // Overlay might have been disposed, ignore error
+    }
     _currentToast = null;
   }
 

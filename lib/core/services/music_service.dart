@@ -57,43 +57,58 @@ class Song {
   }
 
   static Future<Song> fromFile(File file) async {
-    final fileName = file.path.split('/').last;
-    final nameWithoutExtension = fileName.split('.').first;
-    
-    String title = nameWithoutExtension;
-    String artist = 'Unknown Artist';
-    Duration? duration;
-    Uint8List? albumArt;
-    
     try {
-      // Extract metadata using audio_metadata_reader
-      await Future.delayed(Duration.zero); // Yield to event loop
+      final fileName = file.path.split('/').last;
+      final nameWithoutExtension = fileName.split('.').first;
       
-      final metadata = readMetadata(file, getImage: true); // Re-enable album art loading
+      String title = nameWithoutExtension;
+      String artist = 'Unknown Artist';
+      Duration? duration;
+      Uint8List? albumArt;
       
-      // Extract basic info
-      title = metadata.title?.isNotEmpty == true ? metadata.title! : nameWithoutExtension;
-      artist = metadata.artist?.isNotEmpty == true ? metadata.artist! : 'Unknown Artist';
-      duration = metadata.duration;
-      
-      // Extract album art
-      if (metadata.pictures.isNotEmpty) {
-        albumArt = metadata.pictures.first.bytes;
+      try {
+        // Extract metadata using audio_metadata_reader
+        await Future.delayed(Duration.zero); // Yield to event loop
+        
+        final metadata = readMetadata(file, getImage: true); // Re-enable album art loading
+        
+        // Extract basic info with null safety
+        title = metadata.title?.isNotEmpty == true ? metadata.title! : nameWithoutExtension;
+        artist = metadata.artist?.isNotEmpty == true ? metadata.artist! : 'Unknown Artist';
+        duration = metadata.duration;
+        
+        // Extract album art safely
+        if (metadata.pictures.isNotEmpty) {
+          albumArt = metadata.pictures.first.bytes;
+        }
+      } catch (e) {
+        debugPrint('Failed to extract metadata for ${file.path}: $e');
+        // Keep default values
       }
+      
+      return Song(
+        id: file.path,
+        title: title,
+        artist: artist,
+        path: file.path,
+        duration: duration,
+        albumArt: albumArt,
+        lastModified: await file.lastModified(),
+      );
     } catch (e) {
-      debugPrint('Failed to extract metadata for ${file.path}: $e');
-      // Keep default values
+      debugPrint('Critical error creating Song from file ${file.path}: $e');
+      // Return a safe fallback Song
+      final fileName = file.path.split('/').last;
+      return Song(
+        id: file.path,
+        title: fileName,
+        artist: 'Unknown Artist',
+        path: file.path,
+        duration: null,
+        albumArt: null,
+        lastModified: DateTime.now(),
+      );
     }
-    
-    return Song(
-      id: file.path,
-      title: title,
-      artist: artist,
-      path: file.path,
-      duration: duration,
-      albumArt: albumArt,
-      lastModified: await file.lastModified(),
-    );
   }
 
   // Lazy load album art for better performance
@@ -130,6 +145,7 @@ class MusicService extends ChangeNotifier {
   // Caching properties
   bool _isCacheLoaded = false;
   bool _isBackgroundScanComplete = false;
+  double _scanProgress = 0.0; // Track scanning progress for performance monitoring
   static const String _cacheKey = 'music_cache';
   static const String _lastScanKey = 'last_scan_time';
   static const Duration _cacheValidDuration = Duration(days: 1); // Cache valid for 1 day
@@ -166,30 +182,50 @@ class MusicService extends ChangeNotifier {
   void _init() {
     _initAudioSession();
     
-    // Listen to player state changes
+    // Listen to player state changes with error handling
     _audioPlayer.playerStateStream.listen((state) {
-      _isPlaying = state.playing;
-      _updateNotification();
-      notifyListeners();
-      
-      // Handle song completion for auto-play
-      if (state.processingState == ProcessingState.completed && _autoPlayNext) {
-        _handleSongCompletion();
-      }
-    });
-
-    // Listen to position changes
-    _audioPlayer.positionStream.listen((position) {
-      _position = position;
-      notifyListeners();
-    });
-
-    // Listen to duration changes
-    _audioPlayer.durationStream.listen((duration) {
-      if (duration != null) {
-        _duration = duration;
+      try {
+        _isPlaying = state.playing;
+        _updateNotification();
         notifyListeners();
+        
+        // Handle song completion for auto-play
+        if (state.processingState == ProcessingState.completed && _autoPlayNext) {
+          _handleSongCompletion();
+        }
+      } catch (e) {
+        debugPrint('Error in player state stream: $e');
+        _setError('Audio player error: ${e.toString()}');
       }
+    }, onError: (error) {
+      debugPrint('Player state stream error: $error');
+      _setError('Audio stream error: ${error.toString()}');
+    });
+
+    // Listen to position changes with error handling
+    _audioPlayer.positionStream.listen((position) {
+      try {
+        _position = position;
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Error in position stream: $e');
+      }
+    }, onError: (error) {
+      debugPrint('Position stream error: $error');
+    });
+
+    // Listen to duration changes with error handling
+    _audioPlayer.durationStream.listen((duration) {
+      try {
+        if (duration != null) {
+          _duration = duration;
+          notifyListeners();
+        }
+      } catch (e) {
+        debugPrint('Error in duration stream: $e');
+      }
+    }, onError: (error) {
+      debugPrint('Duration stream error: $error');
     });
 
     // Auto-load songs when service initializes
@@ -278,10 +314,10 @@ class MusicService extends ChangeNotifier {
         // Check if cache is still valid
         if (now.difference(cacheTime) < _cacheValidDuration) {
           final List<dynamic> songsJson = jsonDecode(cachedData);
-          _songs = songsJson.map((json) => Song.fromJson(json)).toList();
+          _songs = songsJson.map((json) => _songFromOptimizedCache(json)).toList();
           _isCacheLoaded = true;
           notifyListeners();
-          debugPrint('Loaded ${_songs.length} songs from cache');
+          debugPrint('✅ Loaded ${_songs.length} songs from optimized cache');
           return;
         }
       }
@@ -291,18 +327,6 @@ class MusicService extends ChangeNotifier {
   }
 
   // Save songs to cache
-  Future<void> _saveToCache() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final songsJson = _songs.map((song) => song.toJson()).toList();
-      await prefs.setString(_cacheKey, jsonEncode(songsJson));
-      await prefs.setInt(_lastScanKey, DateTime.now().millisecondsSinceEpoch);
-      debugPrint('Saved ${_songs.length} songs to cache');
-    } catch (e) {
-      debugPrint('Failed to save to cache: $e');
-    }
-  }
-
   // Background scanning without blocking UI
   Future<void> _backgroundScan() async {
     try {
@@ -341,41 +365,166 @@ class MusicService extends ChangeNotifier {
     }
   }
 
-  // Load detailed metadata in background
+  // Load detailed metadata in background with improved performance
   Future<void> _loadDetailedMetadata(List<File> musicFiles) async {
     List<Song> detailedSongs = [];
-    const batchSize = 3; // Smaller batches for better responsiveness
+    const batchSize = 5; // Increased batch size for efficiency
+    int processedCount = 0;
+    
+    debugPrint('🎵 Starting metadata scan for ${musicFiles.length} files...');
     
     for (int i = 0; i < musicFiles.length; i += batchSize) {
       final batch = musicFiles.skip(i).take(batchSize).toList();
       
       // Process batch with timeout and better error handling
-      final futures = batch.map((file) => _loadSongWithTimeout(file)).toList();
+      final futures = batch.map((file) => _loadSongWithOptimizedMetadata(file)).toList();
       final batchSongs = await Future.wait(futures);
       
       // Add successfully loaded songs
       for (final song in batchSongs) {
         if (song != null) {
           detailedSongs.add(song);
+          processedCount++;
         }
       }
       
-      // Update UI incrementally every few batches to reduce lag
-      if (i % (batchSize * 3) == 0 || i + batchSize >= musicFiles.length) {
+      // Update progress less frequently to reduce UI lag
+      _scanProgress = processedCount / musicFiles.length;
+      
+      // Update UI only every 10 batches or at the end to reduce lag
+      if (i % (batchSize * 10) == 0 || i + batchSize >= musicFiles.length) {
         _songs = List.from(detailedSongs);
+        debugPrint('🎵 Processed $processedCount/${musicFiles.length} songs (${(_scanProgress * 100).toInt()}%)');
         notifyListeners();
       }
       
-      // Longer delay between batches to prevent blocking UI
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Yield to UI thread between batches
+      await Future.delayed(const Duration(milliseconds: 50));
     }
     
     _songs = detailedSongs;
     _isBackgroundScanComplete = true;
+    _scanProgress = 1.0;
     notifyListeners();
     
-    // Save to cache when complete
-    await _saveToCache();
+    debugPrint('✅ Metadata scan complete: ${detailedSongs.length} songs loaded');
+    
+    // Save to cache when complete (without album art to reduce size)
+    await _saveToCacheOptimized();
+  }
+
+  // Optimized song loading without album art during initial scan
+  Future<Song?> _loadSongWithOptimizedMetadata(File file) async {
+    try {
+      return await _createSongFromFileOptimized(file).timeout(
+        const Duration(milliseconds: 1000), // Reduced timeout
+        onTimeout: () {
+          // Return basic song if metadata loading times out
+          final fileName = file.path.split('/').last;
+          final nameWithoutExtension = fileName.split('.').first;
+          return Song(
+            id: file.path,
+            title: nameWithoutExtension,
+            artist: 'Unknown Artist',
+            path: file.path,
+          );
+        },
+      );
+    } catch (e) {
+      // Return basic song if any error occurs
+      final fileName = file.path.split('/').last;
+      final nameWithoutExtension = fileName.split('.').first;
+      return Song(
+        id: file.path,
+        title: nameWithoutExtension,
+        artist: 'Unknown Artist',
+        path: file.path,
+      );
+    }
+  }
+
+  // Create song with optimized metadata loading (no album art initially)
+  static Future<Song> _createSongFromFileOptimized(File file) async {
+    try {
+      final fileName = file.path.split('/').last;
+      final nameWithoutExtension = fileName.split('.').first;
+      
+      String title = nameWithoutExtension;
+      String artist = 'Unknown Artist';
+      Duration? duration;
+      
+      try {
+        // Extract metadata but skip album art for performance
+        await Future.delayed(Duration.zero); // Yield to event loop
+        
+        final metadata = readMetadata(file, getImage: false); // Disable album art for initial scan
+        
+        // Extract basic info with null safety
+        title = metadata.title?.isNotEmpty == true ? metadata.title! : nameWithoutExtension;
+        artist = metadata.artist?.isNotEmpty == true ? metadata.artist! : 'Unknown Artist';
+        duration = metadata.duration;
+      } catch (e) {
+        debugPrint('Failed to extract metadata for ${file.path}: $e');
+        // Keep default values
+      }
+      
+      return Song(
+        id: file.path,
+        title: title,
+        artist: artist,
+        path: file.path,
+        duration: duration,
+        albumArt: null, // Load album art lazily when needed
+        lastModified: await file.lastModified(),
+      );
+    } catch (e) {
+      debugPrint('Critical error creating Song from file ${file.path}: $e');
+      // Return a safe fallback Song
+      final fileName = file.path.split('/').last;
+      final nameWithoutExtension = fileName.split('.').first;
+      return Song(
+        id: file.path,
+        title: nameWithoutExtension,
+        artist: 'Unknown Artist',
+        path: file.path,
+        lastModified: DateTime.now(),
+      );
+    }
+  }
+
+  // Create song from optimized cache format (without album art)
+  Song _songFromOptimizedCache(Map<String, dynamic> json) {
+    return Song(
+      id: json['id'],
+      title: json['title'],
+      artist: json['artist'],
+      path: json['path'],
+      duration: json['duration'] != null ? Duration(milliseconds: json['duration']) : null,
+      albumArt: null, // Album art loaded lazily when needed
+      lastModified: DateTime.fromMillisecondsSinceEpoch(json['lastModified'] ?? 0),
+    );
+  }
+
+  // Optimized cache saving without album art
+  Future<void> _saveToCacheOptimized() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Save songs without album art to reduce cache size and improve performance
+      final songsJson = _songs.map((song) => {
+        'id': song.id,
+        'title': song.title,
+        'artist': song.artist,
+        'path': song.path,
+        'duration': song.duration?.inMilliseconds,
+        'lastModified': song.lastModified.millisecondsSinceEpoch,
+        // Skip albumArt to reduce cache size
+      }).toList();
+      await prefs.setString(_cacheKey, jsonEncode(songsJson));
+      await prefs.setInt(_lastScanKey, DateTime.now().millisecondsSinceEpoch);
+      debugPrint('✅ Saved ${_songs.length} songs to optimized cache');
+    } catch (e) {
+      debugPrint('Failed to save to cache: $e');
+    }
   }
 
   // Public method to refresh (force rescan)
@@ -408,36 +557,41 @@ class MusicService extends ChangeNotifier {
   // Check if we have any songs ready to display
   bool get hasSongs => _songs.isNotEmpty;
 
-  // Load song with timeout to prevent hanging
-  Future<Song?> _loadSongWithTimeout(File file) async {
+  // Load album art for a specific song (lazy loading)
+  Future<Uint8List?> getAlbumArtForSong(Song song) async {
     try {
-      return await Song.fromFile(file).timeout(
-        const Duration(milliseconds: 1500), // Reduced timeout for better responsiveness
-        onTimeout: () {
-          // Return basic song if metadata loading times out
-          final fileName = file.path.split('/').last;
-          final nameWithoutExtension = fileName.split('.').first;
-          return Song(
-            id: file.path,
-            title: nameWithoutExtension,
-            artist: 'Unknown Artist',
-            path: file.path,
+      if (song.albumArt != null) {
+        return song.albumArt; // Already loaded
+      }
+      
+      final file = File(song.path);
+      if (await file.exists()) {
+        final albumArt = await Song.loadAlbumArt(file);
+        
+        // Update the song in our list with the loaded album art
+        final songIndex = _songs.indexWhere((s) => s.id == song.id);
+        if (songIndex != -1) {
+          _songs[songIndex] = Song(
+            id: song.id,
+            title: song.title,
+            artist: song.artist,
+            path: song.path,
+            duration: song.duration,
+            albumArt: albumArt,
+            lastModified: song.lastModified,
           );
-        },
-      );
+          notifyListeners();
+        }
+        
+        return albumArt;
+      }
     } catch (e) {
-      // Return basic song if any error occurs
-      final fileName = file.path.split('/').last;
-      final nameWithoutExtension = fileName.split('.').first;
-      return Song(
-        id: file.path,
-        title: nameWithoutExtension,
-        artist: 'Unknown Artist',
-        path: file.path,
-      );
+      debugPrint('Failed to load album art for song ${song.title}: $e');
     }
+    return null;
   }
 
+  // Load song with timeout to prevent hanging
   Future<List<File>> _getMusicFiles() async {
     final musicFiles = <File>[];
     
@@ -460,7 +614,9 @@ class MusicService extends ChangeNotifier {
       }
 
       if (!permissionGranted) {
-        throw Exception('Storage permission denied');
+        debugPrint('Storage permission denied - attempting alternative approach');
+        // Try to proceed with limited access instead of throwing
+        return musicFiles;
       }
 
       // Get common music directories

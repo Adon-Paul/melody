@@ -8,7 +8,9 @@ import 'ui/splash/splash_screen.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/music_service.dart';
 import 'core/services/favorites_service.dart';
-import 'core/services/lyrics_service.dart';
+import 'core/services/advanced_lyrics_sync_service.dart';
+import 'core/services/spotify_auth_service.dart';
+import 'core/services/spotify_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +43,19 @@ class MelodyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => MusicService()),
         ChangeNotifierProvider(create: (_) => FavoritesService()),
-        ChangeNotifierProvider(create: (_) => LyricsService()),
+        ChangeNotifierProvider(create: (_) => AdvancedLyricsSyncService()),
+        ChangeNotifierProvider(
+          create: (_) {
+            final service = SpotifyAuthService();
+            service.initialize(); // Initialize deep link listening
+            return service;
+          },
+        ),
+        ChangeNotifierProxyProvider<SpotifyAuthService, SpotifyService>(
+          create: (context) => SpotifyService(context.read<SpotifyAuthService>()),
+          update: (context, spotifyAuth, previous) => 
+              SpotifyService(spotifyAuth),
+        ),
       ],
       child: MaterialApp(
         title: 'Melody - Music Reimagined',

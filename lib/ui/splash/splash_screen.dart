@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/animated_background.dart';
 import '../../core/widgets/modern_toast.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/music_service.dart';
 import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
 
@@ -49,11 +50,32 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _startAnimation();
+    _monitorMusicScanning();
+  }
+
+  void _monitorMusicScanning() {
+    // Listen to music service changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final musicService = context.read<MusicService>();
+      
+      // Add a listener to monitor progress
+      void musicServiceListener() {
+        if (mounted) {
+          setState(() {
+            // UI will automatically update through Consumer widgets
+          });
+        }
+      }
+      
+      musicService.addListener(musicServiceListener);
+      
+      // Initial check
+      musicServiceListener();
+    });
   }
 
   void _startAnimation() async {
-    // Music service automatically starts background scanning in constructor
-    
     // Start background animation
     _backgroundController.forward();
     
@@ -77,8 +99,20 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _handleSwipeUp() async {
     if (!_animationsComplete) return;
+    if (!mounted) return;
     
     final authService = context.read<AuthService>();
+    final musicService = context.read<MusicService>();
+    
+    // Show a message if music scanning is still in progress
+    if (!musicService.isBackgroundScanComplete && !musicService.isCacheLoaded) {
+      ModernToast.showInfo(
+        context,
+        message: 'Music library is still loading. Continuing anyway...',
+      );
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
+    }
     
     if (authService.isAuthenticated) {
       // User is logged in, show welcome message and navigate to home
@@ -222,6 +256,75 @@ class _SplashScreenState extends State<SplashScreen>
                 
                 const SizedBox(height: 60),
                 
+                // Music Scanning Progress
+                Consumer<MusicService>(
+                  builder: (context, musicService, child) {
+                    return AnimatedOpacity(
+                      opacity: _animationsComplete ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 500),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        margin: const EdgeInsets.symmetric(horizontal: 24),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cardColor.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  musicService.isBackgroundScanComplete 
+                                      ? Icons.check_circle 
+                                      : Icons.music_note,
+                                  color: musicService.isBackgroundScanComplete 
+                                      ? AppTheme.successColor 
+                                      : AppTheme.primaryColor,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  musicService.isBackgroundScanComplete 
+                                      ? 'Music Library Ready' 
+                                      : musicService.isCacheLoaded 
+                                          ? 'Refreshing Library...' 
+                                          : 'Scanning Device Music...',
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${musicService.songs.length} songs found',
+                              style: AppTheme.bodySmall.copyWith(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                            if (!musicService.isBackgroundScanComplete) ...[
+                              const SizedBox(height: 12),
+                              LinearProgressIndicator(
+                                backgroundColor: AppTheme.backgroundColor.withValues(alpha: 0.3),
+                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                
+                const SizedBox(height: 40),
+                
                 // Lottie Animation
                 SizedBox(
                   height: 150,
@@ -241,37 +344,44 @@ class _SplashScreenState extends State<SplashScreen>
                 
                 // Swipe up indicator (only shown after animations complete)
                 if (_animationsComplete)
-                  AnimatedBuilder(
-                    animation: _swipeIndicatorController,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: 0.4 + (0.6 * _swipeIndicatorController.value),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.keyboard_arrow_up,
-                              color: AppTheme.primaryColor,
-                              size: 32,
+                  Consumer<MusicService>(
+                    builder: (context, musicService, child) {
+                      return AnimatedBuilder(
+                        animation: _swipeIndicatorController,
+                        builder: (context, child) {
+                          return Opacity(
+                            opacity: 0.4 + (0.6 * _swipeIndicatorController.value),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.keyboard_arrow_up,
+                                  color: AppTheme.primaryColor,
+                                  size: 32,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  musicService.isBackgroundScanComplete || musicService.isCacheLoaded
+                                      ? 'Swipe up to continue'
+                                      : 'Swipe up to continue (scanning in background)',
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w300,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'or tap anywhere',
+                                  style: AppTheme.bodySmall.copyWith(
+                                    color: AppTheme.textSecondary.withValues(alpha: 0.6),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Swipe up to continue',
-                              style: AppTheme.bodyMedium.copyWith(
-                                color: AppTheme.textSecondary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w300,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'or tap anywhere',
-                              style: AppTheme.bodySmall.copyWith(
-                                color: AppTheme.textSecondary.withValues(alpha: 0.6),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       );
                     },
                   ),

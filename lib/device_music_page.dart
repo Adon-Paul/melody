@@ -143,7 +143,7 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> with TickerProviderSt
                     context,
                     message: 'Refreshing music library...',
                     icon: Icons.refresh,
-                    backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
                   );
                 },
               ),
@@ -154,10 +154,10 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> with TickerProviderSt
           // Search Bar - Always available
           Container(
             decoration: BoxDecoration(
-              color: AppTheme.surfaceColor.withOpacity(0.1),
+              color: AppTheme.surfaceColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(25),
               border: Border.all(
-                color: AppTheme.primaryColor.withOpacity(0.3),
+                color: AppTheme.primaryColor.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -252,10 +252,10 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> with TickerProviderSt
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceColor.withOpacity(0.1),
+        color: AppTheme.surfaceColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -404,13 +404,13 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> with TickerProviderSt
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
             color: isCurrentSong
-                ? AppTheme.primaryColor.withOpacity(0.1)
-                : AppTheme.surfaceColor.withOpacity(0.05),
+                ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                : AppTheme.surfaceColor.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isCurrentSong
-                  ? AppTheme.primaryColor.withOpacity(0.3)
-                  : AppTheme.surfaceColor.withOpacity(0.1),
+                  ? AppTheme.primaryColor.withValues(alpha: 0.3)
+                  : AppTheme.surfaceColor.withValues(alpha: 0.1),
               width: 1,
             ),
           ),
@@ -420,7 +420,7 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> with TickerProviderSt
               height: 50,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                color: AppTheme.primaryColor.withOpacity(0.1),
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
               ),
               child: song.albumArt != null
                   ? ClipRRect(

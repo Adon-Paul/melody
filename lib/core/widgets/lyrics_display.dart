@@ -25,6 +25,9 @@ class _LyricsDisplayState extends State<LyricsDisplay>
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  
+  int _lastScrolledLineIndex = -1; // Track the last line we scrolled to
+  double _lastScrollTime = -1; // Track when we last scrolled
 
   @override
   void initState() {
@@ -79,11 +82,42 @@ class _LyricsDisplayState extends State<LyricsDisplay>
         final lyricsService = context.read<LyricsService>();
         lyricsService.updateCurrentTime(widget.currentTime);
         
-        // Auto-scroll to current line
+        // Timestamp-based scrolling: only scroll when we hit a new timestamp
         if (lyricsService.autoScroll && lyricsService.currentLineIndex >= 0) {
-          _scrollToCurrentLine(lyricsService.currentLineIndex);
+          _handleTimestampBasedScrolling(lyricsService);
         }
       });
+    }
+  }
+
+  void _handleTimestampBasedScrolling(LyricsService lyricsService) {
+    final currentLineIndex = lyricsService.currentLineIndex;
+    final currentTime = widget.currentTime;
+    
+    // Only scroll if:
+    // 1. We're on a new line that we haven't scrolled to yet
+    // 2. Enough time has passed since the last scroll (prevent rapid scrolling)
+    // 3. For synced lyrics, scroll exactly when timestamp is reached
+    if (currentLineIndex != _lastScrolledLineIndex && 
+        (currentTime - _lastScrollTime) > 0.5) { // Minimum 500ms between scrolls
+      
+      if (lyricsService.currentLyrics?.isTimeSynced == true) {
+        // For synced lyrics, check if we're at the exact timestamp
+        final currentLine = lyricsService.currentLyrics!.lines[currentLineIndex];
+        final timeDiff = (currentTime - currentLine.timestamp).abs();
+        
+        // Only scroll if we're very close to the timestamp (within 200ms)
+        if (timeDiff <= 0.2) {
+          _scrollToCurrentLine(currentLineIndex);
+          _lastScrolledLineIndex = currentLineIndex;
+          _lastScrollTime = currentTime;
+        }
+      } else {
+        // For estimated lyrics, use the regular auto-scroll behavior
+        _scrollToCurrentLine(currentLineIndex);
+        _lastScrolledLineIndex = currentLineIndex;
+        _lastScrollTime = currentTime;
+      }
     }
   }
 
@@ -117,9 +151,9 @@ class _LyricsDisplayState extends State<LyricsDisplay>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withOpacity(0.3),
-                Colors.black.withOpacity(0.1),
-                Colors.black.withOpacity(0.3),
+                Colors.black.withValues(alpha: 0.3),
+                Colors.black.withValues(alpha: 0.1),
+                Colors.black.withValues(alpha: 0.3),
               ],
             ),
           ),
@@ -140,7 +174,7 @@ class _LyricsDisplayState extends State<LyricsDisplay>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
@@ -482,12 +516,12 @@ class _LyricsDisplayState extends State<LyricsDisplay>
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isCurrentLine 
-                    ? const Color(0xFF00C896).withOpacity(0.1)
+                    ? const Color(0xFF00C896).withValues(alpha: 0.1)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 border: isCurrentLine 
                     ? Border.all(
-                        color: const Color(0xFF00C896).withOpacity(0.3),
+                        color: const Color(0xFF00C896).withValues(alpha: 0.3),
                         width: 1,
                       )
                     : null,
@@ -517,14 +551,14 @@ class _LyricsDisplayState extends State<LyricsDisplay>
 
     // Special styling for chorus and verse
     if (lyricsService.highlightChorus && line.isChorus && !isCurrentLine) {
-      textColor = const Color(0xFF00C896).withOpacity(0.7);
+      textColor = const Color(0xFF00C896).withValues(alpha: 0.7);
     }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (lyricsService.showTimestamps) ...[
-          Container(
+          SizedBox(
             width: 50,
             child: Text(
               _formatTimestamp(line.timestamp),
@@ -557,7 +591,7 @@ class _LyricsDisplayState extends State<LyricsDisplay>
             margin: const EdgeInsets.only(left: 8),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color(0xFF00C896).withOpacity(0.2),
+              color: const Color(0xFF00C896).withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(

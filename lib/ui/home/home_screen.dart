@@ -13,6 +13,7 @@ import '../device_music_page.dart';
 import '../favorites_page.dart';
 import '../../core/demo/transition_demo_page.dart';
 import '../../ui/auth/login_screen.dart';
+import '../spotify_login_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -396,6 +397,95 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             );
                           },
+                        ),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Spotify Card
+                        GestureDetector(
+                          onTap: () {
+                            context.pushCircleMorph(const SpotifyLoginPage());
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surfaceColor,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                              border: Border.all(
+                                color: const Color(0xFF1DB954).withValues(alpha: 0.3),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF1DB954).withValues(alpha: 0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF1DB954),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.music_note,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Spotify Integration',
+                                        style: AppTheme.headlineMedium.copyWith(
+                                          color: AppTheme.textPrimary,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: AppTheme.textSecondary,
+                                      size: 16,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.cloud_sync,
+                                      color: const Color(0xFF1DB954),
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Connect to access millions of songs',
+                                      style: AppTheme.bodyMedium.copyWith(
+                                        color: const Color(0xFF1DB954),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Search tracks, playlists, and discover music',
+                                  style: AppTheme.bodySmall.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                         
                         const SizedBox(height: 24),

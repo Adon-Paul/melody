@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui';
 import 'dart:async';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/animated_background.dart';
-import 'core/widgets/glass_notification.dart';
 import 'core/services/music_service.dart';
 import 'core/services/favorites_service.dart';
 import 'ui/full_music_player_page.dart';
@@ -125,13 +123,17 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
                                 onPressed: _isSearching
                                     ? null
                                     : () async {
+                                        final scaffoldMessenger = ScaffoldMessenger.of(context);
                                         await musicService.refreshSongs();
-                                        GlassNotification.show(
-                                          context,
-                                          message: 'Music library refreshed',
-                                          icon: Icons.refresh,
-                                          backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-                                        );
+                                        if (mounted) {
+                                          scaffoldMessenger.showSnackBar(
+                                            SnackBar(
+                                              content: const Text('Music library refreshed'),
+                                              backgroundColor: AppTheme.primaryColor,
+                                              duration: const Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
                                       },
                               ),
                             ],
@@ -141,10 +143,10 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
                           // Search Bar
                           Container(
                             decoration: BoxDecoration(
-                              color: AppTheme.surfaceColor.withOpacity(0.1),
+                              color: AppTheme.surfaceColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(25),
                               border: Border.all(
-                                color: AppTheme.primaryColor.withOpacity(0.3),
+                                color: AppTheme.primaryColor.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                             ),
@@ -234,10 +236,10 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceColor.withOpacity(0.1),
+        color: AppTheme.surfaceColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.primaryColor.withOpacity(0.2),
+          color: AppTheme.primaryColor.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -372,13 +374,13 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: isCurrentSong
-            ? AppTheme.primaryColor.withOpacity(0.1)
-            : AppTheme.surfaceColor.withOpacity(0.05),
+            ? AppTheme.primaryColor.withValues(alpha: 0.1)
+            : AppTheme.surfaceColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isCurrentSong
-              ? AppTheme.primaryColor.withOpacity(0.3)
-              : AppTheme.surfaceColor.withOpacity(0.1),
+              ? AppTheme.primaryColor.withValues(alpha: 0.3)
+              : AppTheme.surfaceColor.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -425,7 +427,7 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
       height: 50,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: AppTheme.primaryColor.withOpacity(0.1),
+        color: AppTheme.primaryColor.withValues(alpha: 0.1),
       ),
       child: song.albumArt != null
           ? ClipRRect(

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dart_ytmusic_api/yt_music.dart';
+import 'package:http/http.dart' as http;
 
 class LyricsLine {
   final double timestamp; // in seconds
@@ -81,6 +82,196 @@ class LyricsData {
 abstract class LyricsProvider {
   String get name;
   Future<LyricsData?> fetchLyrics(String artist, String title);
+}
+
+// LRCLIB API Provider - High-quality synced lyrics
+class LrclibProvider implements LyricsProvider {
+  static const String _baseUrl = 'https://lrclib.net/api';
+  
+  @override
+  String get name => 'LRCLIB';
+
+  @override
+  Future<LyricsData?> fetchLyrics(String artist, String title) async {
+    try {
+      debugPrint('🎵 LRCLIB: Searching for lyrics: $artist - $title');
+      
+      // Step 1: Search for track with exact match
+      final searchUrl = Uri.parse('$_baseUrl/search').replace(
+        queryParameters: {
+          'artist_name': artist,
+          'track_name': title,
+        },
+      );
+
+      debugPrint('🔍 LRCLIB: Making search request');
+      
+      final searchResponse = await http.get(
+        searchUrl,
+        headers: {
+          'User-Agent': 'Melody Music Player (https://github.com/nobodyuwouldknow/melody)',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (searchResponse.statusCode != 200) {
+        debugPrint('❌ LRCLIB: Search failed with status ${searchResponse.statusCode}');
+        return null;
+      }
+
+      final List<dynamic> searchResults = json.decode(searchResponse.body);
+      
+      if (searchResults.isEmpty) {
+        debugPrint('❌ LRCLIB: No results found');
+        return null;
+      }
+
+      // Find best match
+      final bestMatch = searchResults.first; // LRCLIB typically returns best matches first
+      final trackId = bestMatch['id'];
+      final foundTrack = bestMatch['trackName'] ?? '';
+      final foundArtist = bestMatch['artistName'] ?? '';
+      
+      debugPrint('✅ LRCLIB: Found match: "$foundArtist - $foundTrack" (ID: $trackId)');
+
+      // Step 2: Get detailed lyrics by ID
+      final lyricsUrl = Uri.parse('$_baseUrl/get/$trackId');
+      
+      final lyricsResponse = await http.get(
+        lyricsUrl,
+        headers: {
+          'User-Agent': 'Melody Music Player (https://github.com/nobodyuwouldknow/melody)',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (lyricsResponse.statusCode != 200) {
+        debugPrint('❌ LRCLIB: Lyrics fetch failed with status ${lyricsResponse.statusCode}');
+        return null;
+      }
+
+      final lyricsData = json.decode(lyricsResponse.body);
+      
+      // Check for synced lyrics first
+      final syncedLyrics = lyricsData['syncedLyrics'] as String?;
+      final plainLyrics = lyricsData['plainLyrics'] as String?;
+      final instrumental = lyricsData['instrumental'] as bool? ?? false;
+      
+      if (instrumental) {
+        debugPrint('🎵 LRCLIB: Track is marked as instrumental');
+        return LyricsData(
+          songTitle: foundTrack,
+          artist: foundArtist,
+          lines: [LyricsLine(timestamp: 0.0, text: '[Instrumental]')],
+          source: 'LRCLIB (Instrumental)',
+          fetchedAt: DateTime.now(),
+          isTimeSynced: false,
+        );
+      }
+
+      if (syncedLyrics != null && syncedLyrics.isNotEmpty) {
+        debugPrint('✅ LRCLIB: Found synced lyrics with real timestamps');
+        final lines = _parseSyncedLyrics(syncedLyrics);
+        return LyricsData(
+          songTitle: foundTrack,
+          artist: foundArtist,
+          lines: lines,
+          source: 'LRCLIB (Synced)',
+          fetchedAt: DateTime.now(),
+          isTimeSynced: true,
+        );
+      } else if (plainLyrics != null && plainLyrics.isNotEmpty) {
+        debugPrint('✅ LRCLIB: Found plain lyrics');
+        final lines = _parsePlainLyrics(plainLyrics);
+        return LyricsData(
+          songTitle: foundTrack,
+          artist: foundArtist,
+          lines: lines,
+          source: 'LRCLIB (Plain)',
+          fetchedAt: DateTime.now(),
+          isTimeSynced: false,
+        );
+      }
+
+      debugPrint('❌ LRCLIB: No lyrics available');
+      return null;
+    } catch (e, stackTrace) {
+      debugPrint('❌ LRCLIB: Exception - $e');
+      debugPrint('Stack trace: $stackTrace');
+      return null;
+    }
+  }
+
+  // Parse synced lyrics (LRC format) - Real timestamps from LRCLIB
+  List<LyricsLine> _parseSyncedLyrics(String syncedLyrics) {
+    List<LyricsLine> lines = [];
+    
+    try {
+      final lrcLines = syncedLyrics.split('\n');
+      
+      for (final line in lrcLines) {
+        final trimmedLine = line.trim();
+        if (trimmedLine.isEmpty) continue;
+        
+        // Parse LRC format: [mm:ss.xx]text or [mm:ss.xxx]text
+        final lrcRegex = RegExp(r'\[(\d{1,2}):(\d{2})[\.:](\d{2,3})\](.*)');
+        final match = lrcRegex.firstMatch(trimmedLine);
+        
+        if (match != null) {
+          final minutes = int.parse(match.group(1) ?? '0');
+          final seconds = int.parse(match.group(2) ?? '0');
+          final millisStr = match.group(3) ?? '0';
+          final text = (match.group(4) ?? '').trim();
+          
+          // Handle both .xx and .xxx formats
+          final millis = millisStr.length == 2 
+              ? int.parse(millisStr) * 10  // .xx format (centiseconds)
+              : int.parse(millisStr);      // .xxx format (milliseconds)
+          
+          final timestamp = minutes * 60.0 + seconds + millis / 1000.0;
+          
+          if (text.isNotEmpty) {
+            lines.add(LyricsLine(
+              timestamp: timestamp,
+              text: text,
+              isChorus: text.toLowerCase().contains('chorus'),
+              isVerse: text.toLowerCase().contains('verse'),
+            ));
+          }
+        }
+      }
+      
+      debugPrint('✅ LRCLIB: Parsed ${lines.length} synced lyrics lines with real timestamps');
+      return lines;
+    } catch (e) {
+      debugPrint('❌ LRCLIB: Error parsing synced lyrics - $e');
+      return [];
+    }
+  }
+
+  // Parse plain text lyrics
+  List<LyricsLine> _parsePlainLyrics(String plainLyrics) {
+    final lines = plainLyrics.split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .toList();
+
+    List<LyricsLine> lyricsLines = [];
+    
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isNotEmpty) {
+        lyricsLines.add(LyricsLine(
+          timestamp: i * 3.5, // Estimate 3.5 seconds per line
+          text: line,
+          isChorus: line.toLowerCase().contains('chorus'),
+          isVerse: line.toLowerCase().contains('verse'),
+        ));
+      }
+    }
+    
+    debugPrint('✅ LRCLIB: Parsed ${lyricsLines.length} plain lyrics lines');
+    return lyricsLines;
+  }
 }
 
 class MusixmatchProvider implements LyricsProvider {
@@ -303,10 +494,11 @@ class LyricsService extends ChangeNotifier {
   LyricsService._internal();
 
   final List<LyricsProvider> _providers = [
-    YouTubeMusicProvider(),
-    MusixmatchProvider(),
-    GeniusProvider(),
-    LyricFindProvider(),
+    LrclibProvider(),        // Primary provider - high quality synced lyrics
+    MusixmatchProvider(),    // Fallback with fuzzy matching
+    YouTubeMusicProvider(),  // Fallback for variety
+    GeniusProvider(),        // Fallback for rare tracks
+    LyricFindProvider(),     // Last resort
   ];
 
   LyricsData? _currentLyrics;
@@ -334,6 +526,7 @@ class LyricsService extends ChangeNotifier {
 
   Future<void> initialize() async {
     await _loadSettings();
+    await _loadProviderSettings();
   }
 
   Future<void> fetchLyrics(String artist, String title) async {
@@ -354,8 +547,13 @@ class LyricsService extends ChangeNotifier {
         return;
       }
 
-      // Try each provider until we get lyrics
+      // Try each enabled provider until we get lyrics
       for (final provider in _providers) {
+        // Skip disabled providers
+        if (!_enabledProviders.contains(provider.name)) {
+          continue;
+        }
+        
         try {
           final lyrics = await provider.fetchLyrics(artist, title);
           if (lyrics != null && lyrics.lines.isNotEmpty) {
@@ -505,6 +703,79 @@ class LyricsService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Cache clear error: $e');
+    }
+  }
+
+  // Provider Management Methods
+  String _primaryProvider = 'LRCLIB';
+  Set<String> _enabledProviders = {'LRCLIB', 'YouTube Music', 'Musixmatch'};
+
+  String get primaryProvider => _primaryProvider;
+  
+  List<String> get availableProviders => _providers.map((p) => p.name).toList();
+  
+  Set<String> get enabledProviders => Set.from(_enabledProviders);
+
+  Future<void> setPrimaryProvider(String providerName) async {
+    if (availableProviders.contains(providerName)) {
+      _primaryProvider = providerName;
+      
+      // Reorder providers to put primary first
+      _reorderProviders();
+      
+      // Save to preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('lyrics_primary_provider', _primaryProvider);
+      
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleProvider(String providerName) async {
+    if (availableProviders.contains(providerName)) {
+      if (_enabledProviders.contains(providerName)) {
+        // Don't allow disabling if it's the only enabled provider
+        if (_enabledProviders.length > 1) {
+          _enabledProviders.remove(providerName);
+        }
+      } else {
+        _enabledProviders.add(providerName);
+      }
+      
+      // Save to preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('lyrics_enabled_providers', _enabledProviders.toList());
+      
+      notifyListeners();
+    }
+  }
+
+  void _reorderProviders() {
+    // Find the primary provider and move it to the front
+    final primaryProviderIndex = _providers.indexWhere((p) => p.name == _primaryProvider);
+    if (primaryProviderIndex > 0) {
+      final primaryProvider = _providers.removeAt(primaryProviderIndex);
+      _providers.insert(0, primaryProvider);
+    }
+  }
+
+  Future<void> _loadProviderSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _primaryProvider = prefs.getString('lyrics_primary_provider') ?? 'LRCLIB';
+      
+      final enabledList = prefs.getStringList('lyrics_enabled_providers');
+      if (enabledList != null && enabledList.isNotEmpty) {
+        _enabledProviders = enabledList.toSet();
+      }
+      
+      // Ensure primary provider is enabled
+      _enabledProviders.add(_primaryProvider);
+      
+      // Reorder providers based on primary selection
+      _reorderProviders();
+    } catch (e) {
+      debugPrint('Provider settings load error: $e');
     }
   }
 }

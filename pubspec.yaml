@@ -58,10 +58,17 @@ dependencies:
   
   # Audio & Media
   just_audio: ^0.10.4
+  lrc: ^1.0.2
   audio_session: ^0.2.2
   rxdart: ^0.28.0
   audio_metadata_reader: ^1.4.1
   dart_ytmusic_api: ^1.2.1
+  
+  # Spotify Integration
+  url_launcher: ^6.1.14
+  app_links: ^6.3.2
+  flutter_secure_storage: ^9.0.0
+  http: ^1.1.0
   
   # Icons & Theming
   flutter_launcher_icons: ^0.14.4
