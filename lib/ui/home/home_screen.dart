@@ -25,10 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto-load music files when entering home screen
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MusicService>().loadSongs();
-    });
+    // No need to call loadSongs() since MusicService auto-starts background scanning
+    // Just let the background scan populate songs naturally
   }
 
   Future<void> _handleSignOut() async {

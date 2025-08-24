@@ -5,8 +5,10 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
 import 'notification_service.dart';
 
 class Song {
@@ -16,6 +18,7 @@ class Song {
   final String path;
   final Duration? duration;
   final Uint8List? albumArt;
+  final DateTime lastModified;
 
   Song({
     required this.id,
@@ -24,7 +27,34 @@ class Song {
     required this.path,
     this.duration,
     this.albumArt,
-  });
+    DateTime? lastModified,
+  }) : lastModified = lastModified ?? DateTime.now();
+
+  // Convert to JSON for caching
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'artist': artist,
+      'path': path,
+      'duration': duration?.inMilliseconds,
+      'albumArt': albumArt != null ? base64Encode(albumArt!) : null,
+      'lastModified': lastModified.millisecondsSinceEpoch,
+    };
+  }
+
+  // Create from JSON for cache loading
+  factory Song.fromJson(Map<String, dynamic> json) {
+    return Song(
+      id: json['id'],
+      title: json['title'],
+      artist: json['artist'],
+      path: json['path'],
+      duration: json['duration'] != null ? Duration(milliseconds: json['duration']) : null,
+      albumArt: json['albumArt'] != null ? base64Decode(json['albumArt']) : null,
+      lastModified: DateTime.fromMillisecondsSinceEpoch(json['lastModified'] ?? 0),
+    );
+  }
 
   static Future<Song> fromFile(File file) async {
     final fileName = file.path.split('/').last;
@@ -37,7 +67,9 @@ class Song {
     
     try {
       // Extract metadata using audio_metadata_reader
-      final metadata = readMetadata(file, getImage: true);
+      await Future.delayed(Duration.zero); // Yield to event loop
+      
+      final metadata = readMetadata(file, getImage: true); // Re-enable album art loading
       
       // Extract basic info
       title = metadata.title?.isNotEmpty == true ? metadata.title! : nameWithoutExtension;
@@ -60,7 +92,21 @@ class Song {
       path: file.path,
       duration: duration,
       albumArt: albumArt,
+      lastModified: await file.lastModified(),
     );
+  }
+
+  // Lazy load album art for better performance
+  static Future<Uint8List?> loadAlbumArt(File file) async {
+    try {
+      final metadata = readMetadata(file, getImage: true);
+      if (metadata.pictures.isNotEmpty) {
+        return metadata.pictures.first.bytes;
+      }
+    } catch (e) {
+      debugPrint('Failed to load album art for ${file.path}: $e');
+    }
+    return null;
   }
 }
 
@@ -80,6 +126,13 @@ class MusicService extends ChangeNotifier {
   bool _isRepeatEnabled = false;
   bool _autoPlayNext = true; // Auto-play next song when current ends
   int _currentPlaylistIndex = 0;
+  
+  // Caching properties
+  bool _isCacheLoaded = false;
+  bool _isBackgroundScanComplete = false;
+  static const String _cacheKey = 'music_cache';
+  static const String _lastScanKey = 'last_scan_time';
+  static const Duration _cacheValidDuration = Duration(days: 1); // Cache valid for 1 day
 
   // Getters
   List<Song> get songs => _songs;
@@ -88,6 +141,10 @@ class MusicService extends ChangeNotifier {
   bool get isPlaying => _isPlaying;
   bool get isLoading => _isLoading;
   Duration get position => _position;
+  
+  // Cache status getters
+  bool get isCacheLoaded => _isCacheLoaded;
+  bool get isBackgroundScanComplete => _isBackgroundScanComplete;
   Duration get duration => _duration;
   double get volume => _volume;
   String? get errorMessage => _errorMessage;
@@ -102,6 +159,8 @@ class MusicService extends ChangeNotifier {
   MusicService() {
     _init();
     _initNotifications();
+    // Start background loading immediately
+    _loadFromCacheAndStartBackgroundScan();
   }
 
   void _init() {
@@ -190,74 +249,170 @@ class MusicService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Load songs from device storage with optimized scanning
-  Future<void> loadSongs() async {
+  // Load from cache and start background scanning
+  Future<void> _loadFromCacheAndStartBackgroundScan() async {
     try {
-      _setLoading(true);
-      _setError(null);
+      // First, try to load from cache for instant display
+      await _loadFromCache();
       
-      final musicFiles = await _getMusicFiles();
-      
-      // First pass: Create basic songs quickly without metadata
-      List<Song> quickSongs = musicFiles.map((file) {
-        final fileName = file.path.split('/').last;
-        final nameWithoutExtension = fileName.split('.').first;
-        return Song(
-          id: file.path,
-          title: nameWithoutExtension,
-          artist: 'Loading...',
-          path: file.path,
-        );
-      }).toList();
-      
-      // Update UI immediately with basic info
-      _songs = quickSongs;
-      notifyListeners();
-      
-      // Second pass: Load metadata in background with larger batches
-      List<Song> detailedSongs = [];
-      const batchSize = 10; // Increased batch size for better performance
-      
-      for (int i = 0; i < musicFiles.length; i += batchSize) {
-        final batch = musicFiles.skip(i).take(batchSize).toList();
-        
-        // Process batch in parallel but with timeout
-        final futures = batch.map((file) => _loadSongWithTimeout(file)).toList();
-        final batchSongs = await Future.wait(futures);
-        
-        // Update songs that loaded successfully
-        for (int j = 0; j < batchSongs.length; j++) {
-          final songIndex = i + j;
-          if (songIndex < _songs.length && batchSongs[j] != null) {
-            detailedSongs.add(batchSongs[j]!);
-          } else {
-            // Keep the quick song if metadata loading failed
-            detailedSongs.add(quickSongs[songIndex]);
-          }
-        }
-        
-        // Update UI with new batch
-        _songs = List.from(detailedSongs);
-        notifyListeners();
-        
-        // Minimal delay to keep UI responsive
-        await Future.delayed(const Duration(milliseconds: 10));
-      }
-      
-      _songs = detailedSongs;
-      notifyListeners();
+      // Then start background scanning for fresh data
+      _backgroundScan();
     } catch (e) {
-      _setError('Failed to load music files: ${e.toString()}');
-    } finally {
-      _setLoading(false);
+      debugPrint('Failed to load from cache: $e');
+      // If cache fails, start normal scan
+      _backgroundScan();
     }
   }
+
+  // Load songs from cache
+  Future<void> _loadFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedData = prefs.getString(_cacheKey);
+      final lastScanTime = prefs.getInt(_lastScanKey) ?? 0;
+      
+      if (cachedData != null) {
+        final cacheTime = DateTime.fromMillisecondsSinceEpoch(lastScanTime);
+        final now = DateTime.now();
+        
+        // Check if cache is still valid
+        if (now.difference(cacheTime) < _cacheValidDuration) {
+          final List<dynamic> songsJson = jsonDecode(cachedData);
+          _songs = songsJson.map((json) => Song.fromJson(json)).toList();
+          _isCacheLoaded = true;
+          notifyListeners();
+          debugPrint('Loaded ${_songs.length} songs from cache');
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to load from cache: $e');
+    }
+  }
+
+  // Save songs to cache
+  Future<void> _saveToCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final songsJson = _songs.map((song) => song.toJson()).toList();
+      await prefs.setString(_cacheKey, jsonEncode(songsJson));
+      await prefs.setInt(_lastScanKey, DateTime.now().millisecondsSinceEpoch);
+      debugPrint('Saved ${_songs.length} songs to cache');
+    } catch (e) {
+      debugPrint('Failed to save to cache: $e');
+    }
+  }
+
+  // Background scanning without blocking UI
+  Future<void> _backgroundScan() async {
+    try {
+      final musicFiles = await _getMusicFiles();
+      
+      if (musicFiles.isEmpty) {
+        _isBackgroundScanComplete = true;
+        notifyListeners();
+        return;
+      }
+
+      // If we don't have cache, show quick loading first
+      if (!_isCacheLoaded) {
+        _setLoading(true);
+        List<Song> quickSongs = musicFiles.map((file) {
+          final fileName = file.path.split('/').last;
+          final nameWithoutExtension = fileName.split('.').first;
+          return Song(
+            id: file.path,
+            title: nameWithoutExtension,
+            artist: 'Loading...',
+            path: file.path,
+          );
+        }).toList();
+        
+        _songs = quickSongs;
+        _setLoading(false);
+        notifyListeners();
+      }
+      
+      // Now load detailed metadata in background
+      await _loadDetailedMetadata(musicFiles);
+      
+    } catch (e) {
+      _setError('Failed to scan music files: ${e.toString()}');
+    }
+  }
+
+  // Load detailed metadata in background
+  Future<void> _loadDetailedMetadata(List<File> musicFiles) async {
+    List<Song> detailedSongs = [];
+    const batchSize = 3; // Smaller batches for better responsiveness
+    
+    for (int i = 0; i < musicFiles.length; i += batchSize) {
+      final batch = musicFiles.skip(i).take(batchSize).toList();
+      
+      // Process batch with timeout and better error handling
+      final futures = batch.map((file) => _loadSongWithTimeout(file)).toList();
+      final batchSongs = await Future.wait(futures);
+      
+      // Add successfully loaded songs
+      for (final song in batchSongs) {
+        if (song != null) {
+          detailedSongs.add(song);
+        }
+      }
+      
+      // Update UI incrementally every few batches to reduce lag
+      if (i % (batchSize * 3) == 0 || i + batchSize >= musicFiles.length) {
+        _songs = List.from(detailedSongs);
+        notifyListeners();
+      }
+      
+      // Longer delay between batches to prevent blocking UI
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    
+    _songs = detailedSongs;
+    _isBackgroundScanComplete = true;
+    notifyListeners();
+    
+    // Save to cache when complete
+    await _saveToCache();
+  }
+
+  // Public method to refresh (force rescan)
+  Future<void> refreshSongs() async {
+    _isCacheLoaded = false;
+    _isBackgroundScanComplete = false;
+    _songs.clear();
+    notifyListeners();
+    
+    // Clear cache
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_cacheKey);
+    await prefs.remove(_lastScanKey);
+    
+    // Start fresh scan
+    await _backgroundScan();
+  }
+
+  // Load songs from device storage (uses cache for instant loading)
+  Future<void> loadSongs() async {
+    // Always return immediately - background scan handles everything
+    return;
+  }
+
+  // Get songs with immediate response
+  List<Song> getAvailableSongs() {
+    return _songs;
+  }
+
+  // Check if we have any songs ready to display
+  bool get hasSongs => _songs.isNotEmpty;
 
   // Load song with timeout to prevent hanging
   Future<Song?> _loadSongWithTimeout(File file) async {
     try {
       return await Song.fromFile(file).timeout(
-        const Duration(seconds: 2),
+        const Duration(milliseconds: 1500), // Reduced timeout for better responsiveness
         onTimeout: () {
           // Return basic song if metadata loading times out
           final fileName = file.path.split('/').last;
@@ -387,8 +542,8 @@ class MusicService extends ChangeNotifier {
   Future<void> playSong(Song song) async {
     try {
       _setError(null);
-      // Ensure we have metadata for the song
-      _currentSong = await Song.fromFile(File(song.path));
+      // Use the existing song data instead of reloading to preserve album art
+      _currentSong = song;
       
       // Update playlist if not already set
       if (_playlist.isEmpty) {

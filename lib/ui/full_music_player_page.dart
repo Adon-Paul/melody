@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui';
 import '../core/theme/app_theme.dart';
 import '../core/services/music_service.dart';
 import '../core/services/favorites_service.dart';
+import '../core/services/lyrics_service.dart';
 import '../core/widgets/animated_background.dart';
 import '../core/widgets/glass_notification.dart';
 
@@ -17,7 +19,9 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
     with TickerProviderStateMixin {
   late AnimationController _albumRotationController;
   late AnimationController _fadeController;
+  late AnimationController _lyricsController;
   bool _isDraggingSeek = false;
+  bool _lyricsMinimized = false;
   Duration _seekPosition = Duration.zero;
 
   @override
@@ -31,6 +35,10 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+    _lyricsController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
     _fadeController.forward();
     
     // Start album rotation if playing
@@ -38,13 +46,314 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
     if (musicService.isPlaying) {
       _albumRotationController.repeat();
     }
+
+    // Listen for song changes to update lyrics
+    musicService.addListener(_onSongChanged);
+
+    // Initialize lyrics service and fetch lyrics for current song
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeLyrics();
+    });
+  }
+
+  void _onSongChanged() {
+    final musicService = context.read<MusicService>();
+    if (musicService.currentSong != null) {
+      _initializeLyrics();
+    }
   }
 
   @override
   void dispose() {
     _albumRotationController.dispose();
     _fadeController.dispose();
+    _lyricsController.dispose();
     super.dispose();
+  }
+
+  void _initializeLyrics() async {
+    final musicService = context.read<MusicService>();
+    final lyricsService = context.read<LyricsService>();
+    
+    await lyricsService.initialize();
+    
+    if (musicService.currentSong != null) {
+      lyricsService.fetchLyrics(
+        musicService.currentSong!.artist,
+        musicService.currentSong!.title,
+      );
+    }
+  }
+
+  void _toggleLyricsMinimize() {
+    setState(() {
+      _lyricsMinimized = !_lyricsMinimized;
+    });
+    if (_lyricsMinimized) {
+      _lyricsController.reverse();
+    } else {
+      _lyricsController.forward();
+    }
+  }
+
+  Widget _buildLyricsBox(MusicService musicService) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      height: _lyricsMinimized ? 60 : 200,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppTheme.primaryColor.withOpacity(0.2),
+                  AppTheme.accentColor.withOpacity(0.15),
+                  AppTheme.primaryColor.withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.2),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Header with minimize button
+                Container(
+                  height: 50,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.lyrics_rounded,
+                        color: Colors.white.withOpacity(0.8),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Lyrics',
+                        style: AppTheme.titleMedium.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: _toggleLyricsMinimize,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Icon(
+                            _lyricsMinimized ? Icons.expand_more_rounded : Icons.expand_less_rounded,
+                            color: Colors.white.withOpacity(0.8),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Lyrics content (hidden when minimized)
+                if (!_lyricsMinimized) ...[
+                  const Divider(
+                    color: Colors.white24,
+                    height: 1,
+                    thickness: 0.5,
+                  ),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Consumer<LyricsService>(
+                        builder: (context, lyricsService, child) {
+                          if (lyricsService.isLoading) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation(Colors.white.withOpacity(0.8)),
+                                    strokeWidth: 3,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Loading lyrics...',
+                                    style: AppTheme.bodyMedium.copyWith(
+                                      color: Colors.white.withOpacity(0.9),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          if (lyricsService.error != null) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(50),
+                                    ),
+                                    child: Icon(
+                                      Icons.lyrics_outlined,
+                                      size: 32,
+                                      color: Colors.white.withOpacity(0.8),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Lyrics not available',
+                                    style: AppTheme.titleMedium.copyWith(
+                                      color: Colors.white.withOpacity(0.9),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    lyricsService.error!,
+                                    style: AppTheme.bodySmall.copyWith(
+                                      color: Colors.white.withOpacity(0.7),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          if (lyricsService.currentLyrics == null || lyricsService.currentLyrics!.lines.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(50),
+                                    ),
+                                    child: Icon(
+                                      Icons.music_note_rounded,
+                                      size: 32,
+                                      color: Colors.white.withOpacity(0.8),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No lyrics found',
+                                    style: AppTheme.titleMedium.copyWith(
+                                      color: Colors.white.withOpacity(0.9),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Enjoy the music without lyrics',
+                                    style: AppTheme.bodySmall.copyWith(
+                                      color: Colors.white.withOpacity(0.7),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          // Update current time for lyrics synchronization
+                          lyricsService.updateCurrentTime(musicService.position.inSeconds.toDouble());
+
+                          // Show lyrics with current line highlighting
+                          return ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: lyricsService.currentLyrics!.lines.length,
+                            itemBuilder: (context, index) {
+                              final lyric = lyricsService.currentLyrics!.lines[index];
+                              final isCurrentLine = lyricsService.currentLineIndex == index;
+                              
+                              return AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                                margin: const EdgeInsets.symmetric(vertical: 2),
+                                decoration: isCurrentLine ? BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.white.withOpacity(0.25),
+                                      Colors.white.withOpacity(0.15),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.4),
+                                    width: 1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.white.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ) : null,
+                                child: Text(
+                                  lyric.text,
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: isCurrentLine 
+                                        ? Colors.white 
+                                        : Colors.white.withOpacity(0.8),
+                                    fontWeight: isCurrentLine ? FontWeight.w600 : FontWeight.normal,
+                                    fontSize: isCurrentLine ? 15 : 14,
+                                    shadows: isCurrentLine ? [
+                                      Shadow(
+                                        color: AppTheme.primaryColor.withOpacity(0.3),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ] : null,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   String _formatDuration(Duration? duration) {
@@ -225,269 +534,308 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
               ),
 
               SafeArea(
-                child: Column(
-                  children: [
-                    // Header
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              color: AppTheme.textPrimary,
-                              size: 32,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Header
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: AppTheme.textPrimary,
+                                size: 32,
+                              ),
+                              onPressed: () => Navigator.pop(context),
                             ),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          Expanded(
-                            child: Column(
+                            Expanded(
+                              child: Text(
+                                'Now Playing',
+                                style: AppTheme.headlineMedium.copyWith(
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            Consumer<FavoritesService>(
+                              builder: (context, favoritesService, child) {
+                                final isFavorite = favoritesService.isFavorite(song.id);
+                                return IconButton(
+                                  icon: Icon(
+                                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                                    color: isFavorite ? Colors.red : AppTheme.textPrimary,
+                                    size: 28,
+                                  ),
+                                  onPressed: () {
+                                    if (isFavorite) {
+                                      favoritesService.removeFavorite(song.id);
+                                      GlassNotification.show(
+                                        context,
+                                        message: 'Removed from favorites',
+                                        icon: Icons.favorite_border,
+                                        backgroundColor: AppTheme.surfaceColor.withOpacity(0.2),
+                                      );
+                                    } else {
+                                      favoritesService.addFavorite(song);
+                                      GlassNotification.show(
+                                        context,
+                                        message: 'Added to favorites',
+                                        icon: Icons.favorite,
+                                        backgroundColor: Colors.red.withOpacity(0.2),
+                                      );
+                                    }
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      // Album Art
+                      _buildAlbumArt(song, size: 280),
+
+                      const SizedBox(height: 40),
+
+                      // Song Info
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Column(
+                          children: [
+                            Text(
+                              song.title,
+                              style: AppTheme.headlineMedium.copyWith(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 24,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              song.artist,
+                              style: AppTheme.titleMedium.copyWith(
+                                color: AppTheme.textSecondary,
+                                fontSize: 18,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      // Progress Bar
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Column(
+                          children: [
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 4,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                                activeTrackColor: AppTheme.primaryColor,
+                                inactiveTrackColor: AppTheme.textSecondary.withOpacity(0.3),
+                                thumbColor: AppTheme.primaryColor,
+                                overlayColor: AppTheme.primaryColor.withOpacity(0.2),
+                              ),
+                              child: Slider(
+                                value: _isDraggingSeek 
+                                    ? _seekPosition.inMilliseconds.toDouble()
+                                    : musicService.position.inMilliseconds.toDouble(),
+                                min: 0,
+                                max: musicService.duration.inMilliseconds.toDouble(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _isDraggingSeek = true;
+                                    _seekPosition = Duration(milliseconds: value.toInt());
+                                  });
+                                },
+                                onChangeEnd: (value) {
+                                  final position = Duration(milliseconds: value.toInt());
+                                  musicService.seek(position);
+                                  setState(() {
+                                    _isDraggingSeek = false;
+                                  });
+                                },
+                              ),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Now Playing',
+                                  _formatDuration(_isDraggingSeek ? _seekPosition : musicService.position),
                                   style: AppTheme.bodySmall.copyWith(
                                     color: AppTheme.textSecondary,
-                                    fontSize: 12,
                                   ),
                                 ),
                                 Text(
-                                  'From Device Music',
+                                  _formatDuration(musicService.duration),
                                   style: AppTheme.bodySmall.copyWith(
-                                    color: AppTheme.textSecondary.withValues(alpha: 0.7),
-                                    fontSize: 10,
+                                    color: AppTheme.textSecondary,
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                          Consumer<FavoritesService>(
-                            builder: (context, favoritesService, child) {
-                              final isFavorite = favoritesService.isFavorite(song.id);
-                              return IconButton(
-                                icon: Icon(
-                                  isFavorite ? Icons.favorite : Icons.favorite_border,
-                                  color: isFavorite ? Colors.red : AppTheme.textPrimary,
-                                  size: 28,
-                                ),
-                                onPressed: () {
-                                  if (isFavorite) {
-                                    favoritesService.removeFavorite(song.id);
-                                    GlassNotification.show(
-                                      context,
-                                      message: 'Removed from favorites',
-                                      icon: Icons.favorite_border,
-                                      backgroundColor: AppTheme.surfaceColor.withValues(alpha: 0.2),
-                                    );
-                                  } else {
-                                    favoritesService.addFavorite(song);
-                                    GlassNotification.show(
-                                      context,
-                                      message: 'Added to favorites',
-                                      icon: Icons.favorite,
-                                      backgroundColor: Colors.red.withValues(alpha: 0.2),
-                                    );
-                                  }
-                                },
-                              );
-                            },
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 30),
 
-                    // Album Art
-                    _buildAlbumArt(song, size: 280),
-
-                    const SizedBox(height: 40),
-
-                    // Song Info
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Column(
-                        children: [
-                          Text(
-                            song.title,
-                            style: AppTheme.headlineMedium.copyWith(
-                              color: AppTheme.textPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 24,
+                      // Control Buttons
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildControlButton(
+                              icon: Icons.skip_previous_rounded,
+                              onPressed: () {
+                                musicService.playPrevious();
+                                GlassNotification.show(
+                                  context,
+                                  message: 'Previous track',
+                                  icon: Icons.skip_previous_rounded,
+                                );
+                              },
+                              size: 60,
                             ),
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            song.artist,
-                            style: AppTheme.titleMedium.copyWith(
+                            _buildControlButton(
+                              icon: musicService.isPlaying 
+                                  ? Icons.pause_rounded 
+                                  : Icons.play_arrow_rounded,
+                              onPressed: () {
+                                final wasPlaying = musicService.isPlaying;
+                                musicService.togglePlayPause();
+                                
+                                GlassNotification.show(
+                                  context,
+                                  message: wasPlaying ? 'Paused' : 'Playing',
+                                  icon: wasPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                  backgroundColor: wasPlaying 
+                                      ? AppTheme.surfaceColor.withOpacity(0.2)
+                                      : AppTheme.primaryColor.withOpacity(0.2),
+                                );
+                              },
+                              size: 80,
+                              isPrimary: true,
+                            ),
+                            _buildControlButton(
+                              icon: Icons.skip_next_rounded,
+                              onPressed: () {
+                                musicService.playNext();
+                                GlassNotification.show(
+                                  context,
+                                  message: 'Next track',
+                                  icon: Icons.skip_next_rounded,
+                                );
+                              },
+                              size: 60,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Additional Controls Row
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildControlButton(
+                              icon: musicService.isShuffleEnabled 
+                                  ? Icons.shuffle_on_rounded 
+                                  : Icons.shuffle_rounded,
+                              onPressed: () {
+                                musicService.toggleShuffle();
+                                GlassNotification.show(
+                                  context,
+                                  message: musicService.isShuffleEnabled ? 'Shuffle on' : 'Shuffle off',
+                                  icon: Icons.shuffle_rounded,
+                                );
+                              },
+                              size: 50,
+                            ),
+                            _buildControlButton(
+                              icon: musicService.isRepeatEnabled 
+                                  ? Icons.repeat_one_rounded 
+                                  : Icons.repeat_rounded,
+                              onPressed: () {
+                                musicService.toggleRepeat();
+                                GlassNotification.show(
+                                  context,
+                                  message: musicService.isRepeatEnabled ? 'Repeat on' : 'Repeat off',
+                                  icon: Icons.repeat_rounded,
+                                );
+                              },
+                              size: 50,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Volume Control
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.volume_down,
                               color: AppTheme.textSecondary,
-                              fontSize: 18,
                             ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // Progress Bar
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Column(
-                        children: [
-                          SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              trackHeight: 4,
-                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-                              activeTrackColor: AppTheme.primaryColor,
-                              inactiveTrackColor: AppTheme.textSecondary.withValues(alpha: 0.3),
-                              thumbColor: AppTheme.primaryColor,
-                              overlayColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-                            ),
-                            child: Slider(
-                              value: _isDraggingSeek 
-                                  ? _seekPosition.inMilliseconds.toDouble()
-                                  : musicService.position.inMilliseconds.toDouble(),
-                              min: 0,
-                              max: musicService.duration.inMilliseconds.toDouble(),
-                              onChanged: (value) {
-                                setState(() {
-                                  _isDraggingSeek = true;
-                                  _seekPosition = Duration(milliseconds: value.toInt());
-                                });
-                              },
-                              onChangeEnd: (value) {
-                                final position = Duration(milliseconds: value.toInt());
-                                musicService.seek(position);
-                                setState(() {
-                                  _isDraggingSeek = false;
-                                });
-                              },
-                            ),
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _formatDuration(_isDraggingSeek ? _seekPosition : musicService.position),
-                                style: AppTheme.bodySmall.copyWith(
-                                  color: AppTheme.textSecondary,
+                            Expanded(
+                              child: SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 3,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                                  activeTrackColor: AppTheme.primaryColor,
+                                  inactiveTrackColor: AppTheme.textSecondary.withOpacity(0.3),
+                                  thumbColor: AppTheme.primaryColor,
+                                  overlayColor: AppTheme.primaryColor.withOpacity(0.2),
+                                ),
+                                child: Slider(
+                                  value: musicService.volume,
+                                  min: 0,
+                                  max: 1,
+                                  onChanged: (value) {
+                                    musicService.setVolume(value);
+                                  },
                                 ),
                               ),
-                              Text(
-                                _formatDuration(musicService.duration),
-                                style: AppTheme.bodySmall.copyWith(
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // Control Buttons
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildControlButton(
-                            icon: Icons.skip_previous_rounded,
-                            onPressed: () {
-                              musicService.playPrevious();
-                              GlassNotification.show(
-                                context,
-                                message: 'Previous track',
-                                icon: Icons.skip_previous_rounded,
-                              );
-                            },
-                            size: 60,
-                          ),
-                          _buildControlButton(
-                            icon: musicService.isPlaying 
-                                ? Icons.pause_rounded 
-                                : Icons.play_arrow_rounded,
-                            onPressed: () {
-                              final wasPlaying = musicService.isPlaying;
-                              musicService.togglePlayPause();
-                              
-                              GlassNotification.show(
-                                context,
-                                message: wasPlaying ? 'Paused' : 'Playing',
-                                icon: wasPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                backgroundColor: wasPlaying 
-                                    ? AppTheme.surfaceColor.withValues(alpha: 0.2)
-                                    : AppTheme.primaryColor.withValues(alpha: 0.2),
-                              );
-                            },
-                            size: 80,
-                            isPrimary: true,
-                          ),
-                          _buildControlButton(
-                            icon: Icons.skip_next_rounded,
-                            onPressed: () {
-                              musicService.playNext();
-                              GlassNotification.show(
-                                context,
-                                message: 'Next track',
-                                icon: Icons.skip_next_rounded,
-                              );
-                            },
-                            size: 60,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // Volume Control
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.volume_down,
-                            color: AppTheme.textSecondary,
-                          ),
-                          Expanded(
-                            child: SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                trackHeight: 3,
-                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                                activeTrackColor: AppTheme.primaryColor,
-                                inactiveTrackColor: AppTheme.textSecondary.withValues(alpha: 0.3),
-                                thumbColor: AppTheme.primaryColor,
-                                overlayColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-                              ),
-                              child: Slider(
-                                value: musicService.volume,
-                                min: 0,
-                                max: 1,
-                                onChanged: (value) {
-                                  musicService.setVolume(value);
-                                },
-                              ),
                             ),
-                          ),
-                          Icon(
-                            Icons.volume_up,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ],
+                            Icon(
+                              Icons.volume_up,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(height: 20),
+
+                      // Lyrics Box
+                      _buildLyricsBox(musicService),
+
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               ),
             ],

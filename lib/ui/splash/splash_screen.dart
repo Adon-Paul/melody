@@ -52,6 +52,8 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _startAnimation() async {
+    // Music service automatically starts background scanning in constructor
+    
     // Start background animation
     _backgroundController.forward();
     
