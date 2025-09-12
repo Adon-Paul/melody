@@ -182,33 +182,44 @@ class _LyricsSettingsDialogState extends State<LyricsSettingsDialog> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                 children: [
-                                  ElevatedButton(
-                                    onPressed: () => lyricsService.setSyncOffset(
-                                      lyricsService.syncOffset - 500,
+                                  Flexible(
+                                    child: ElevatedButton(
+                                      onPressed: () => lyricsService.setSyncOffset(
+                                        lyricsService.syncOffset - 500,
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                        foregroundColor: Colors.white,
+                                        minimumSize: const Size(60, 36), // Smaller buttons
+                                      ),
+                                      child: const Text('-500ms', style: TextStyle(fontSize: 11)),
                                     ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white.withValues(alpha: 0.1),
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    child: const Text('-500ms'),
                                   ),
-                                  ElevatedButton(
-                                    onPressed: () => lyricsService.setSyncOffset(0),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.accentColor.withValues(alpha: 0.3),
-                                      foregroundColor: Colors.white,
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: ElevatedButton(
+                                      onPressed: () => lyricsService.setSyncOffset(0),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppTheme.accentColor.withValues(alpha: 0.3),
+                                        foregroundColor: Colors.white,
+                                        minimumSize: const Size(60, 36), // Smaller buttons
+                                      ),
+                                      child: const Text('Reset', style: TextStyle(fontSize: 11)),
                                     ),
-                                    child: const Text('Reset'),
                                   ),
-                                  ElevatedButton(
-                                    onPressed: () => lyricsService.setSyncOffset(
-                                      lyricsService.syncOffset + 500,
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: ElevatedButton(
+                                      onPressed: () => lyricsService.setSyncOffset(
+                                        lyricsService.syncOffset + 500,
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                        foregroundColor: Colors.white,
+                                        minimumSize: const Size(60, 36), // Smaller buttons
+                                      ),
+                                      child: const Text('+500ms', style: TextStyle(fontSize: 11)),
                                     ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white.withValues(alpha: 0.1),
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    child: const Text('+500ms'),
                                   ),
                                 ],
                               ),

@@ -58,7 +58,7 @@ class MelodyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'Melody - Music Reimagined',
+        title: 'Melody - Music Reimagined',               
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         home: const SplashScreen(),

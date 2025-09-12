@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui';
 import 'dart:async';
 import '../core/theme/app_theme.dart';
 import '../core/services/music_service.dart';
@@ -8,8 +7,7 @@ import '../core/services/favorites_service.dart';
 import '../core/services/advanced_lyrics_sync_service.dart';
 import '../core/widgets/animated_background.dart';
 import '../core/widgets/glass_notification.dart';
-import 'widgets/precision_lyrics_widget.dart';
-import 'widgets/lyrics_settings_dialog.dart';
+import 'widgets/compact_lyrics_widget.dart';
 
 class FullMusicPlayerPage extends StatefulWidget {
   const FullMusicPlayerPage({super.key});
@@ -26,7 +24,6 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
   late ScrollController _lyricsScrollController;
   Timer? _lyricsUpdateTimer;
   bool _isDraggingSeek = false;
-  bool _lyricsMinimized = false;
   Duration _seekPosition = Duration.zero;
   MusicService? _musicService;
   AdvancedLyricsSyncService? _lyricsService;
@@ -163,148 +160,6 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
         timer.cancel();
       }
     });
-  }
-
-  void _toggleLyricsMinimize() {
-    setState(() {
-      _lyricsMinimized = !_lyricsMinimized;
-    });
-    if (_lyricsMinimized) {
-      _lyricsController.reverse();
-    } else {
-      _lyricsController.forward();
-    }
-  }
-
-  void _showLyricsSettings(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => const LyricsSettingsDialog(),
-    );
-  }
-
-  Widget _buildLyricsBox(MusicService musicService) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final expandedHeight = screenHeight < 700 ? 540.0 : 660.0; // Tripled from 180/220
-    
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      height: _lyricsMinimized ? 60 : expandedHeight,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppTheme.primaryColor.withValues(alpha: 0.2),
-                  AppTheme.accentColor.withValues(alpha: 0.15),
-                  AppTheme.primaryColor.withValues(alpha: 0.1),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 15,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Header with minimize button
-                Container(
-                  height: 50,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.lyrics_rounded,
-                        color: Colors.white.withValues(alpha: 0.8),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Lyrics',
-                        style: AppTheme.titleMedium.copyWith(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const Spacer(),
-                      // Settings button
-                      GestureDetector(
-                        onTap: () => _showLyricsSettings(context),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Icon(
-                            Icons.settings_rounded,
-                            color: Colors.white.withValues(alpha: 0.8),
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: _toggleLyricsMinimize,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Icon(
-                            _lyricsMinimized ? Icons.expand_more_rounded : Icons.expand_less_rounded,
-                            color: Colors.white.withValues(alpha: 0.8),
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Lyrics content (hidden when minimized)
-                if (!_lyricsMinimized) ...[
-                  const Divider(
-                    color: Colors.white24,
-                    height: 1,
-                    thickness: 0.5,
-                  ),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      child: PrecisionLyricsWidget(
-                        showTimestamps: false,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   String _formatDuration(Duration? duration) {
@@ -796,8 +651,10 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
 
                       const SizedBox(height: 20),
 
-                      // Lyrics Box
-                      _buildLyricsBox(musicService),
+                      // Compact Lyrics Widget
+                      const CompactLyricsWidget(
+                        showTimestamps: false,
+                      ),
 
                       const SizedBox(height: 20),
                     ],

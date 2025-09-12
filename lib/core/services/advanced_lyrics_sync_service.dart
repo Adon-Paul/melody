@@ -80,70 +80,106 @@ class AdvancedLyricsSyncService extends ChangeNotifier {
 
   /// Fetch LRC formatted lyrics from LRCLIB API
   Future<String?> _fetchLrcFromAPI(String artist, String title) async {
-    try {
-      // Search for track
-      final searchUrl = Uri.parse('https://lrclib.net/api/search').replace(
-        queryParameters: {
-          'artist_name': artist,
-          'track_name': title,
-        },
-      );
+    int retryCount = 0;
+    const maxRetries = 2;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        // Search for track with reduced timeout
+        final searchUrl = Uri.parse('https://lrclib.net/api/search').replace(
+          queryParameters: {
+            'artist_name': artist,
+            'track_name': title,
+          },
+        );
 
-      final searchResponse = await http.get(
-        searchUrl,
-        headers: {
-          'User-Agent': 'Melody Music Player (Advanced Sync)',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
+        debugPrint('🔍 Fetching lyrics (attempt ${retryCount + 1}/${maxRetries + 1}) for: $artist - $title');
 
-      if (searchResponse.statusCode != 200) {
+        final searchResponse = await http.get(
+          searchUrl,
+          headers: {
+            'User-Agent': 'Melody Music Player (Advanced Sync)',
+            'Accept': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 8)); // Reduced from 10 to 8 seconds
+
+        if (searchResponse.statusCode != 200) {
+          debugPrint('❌ Search failed with status: ${searchResponse.statusCode}');
+          if (retryCount < maxRetries) {
+            retryCount++;
+            await Future.delayed(Duration(seconds: retryCount)); // Progressive delay
+            continue;
+          }
+          return null;
+        }
+
+        final List<dynamic> searchResults = json.decode(searchResponse.body);
+        if (searchResults.isEmpty) {
+          debugPrint('❌ No search results found');
+          return null;
+        }
+
+        // Get best match
+        final bestMatch = searchResults.first;
+        final trackId = bestMatch['id'];
+
+        // Get detailed lyrics with shorter timeout
+        final lyricsUrl = Uri.parse('https://lrclib.net/api/get/$trackId');
+        final lyricsResponse = await http.get(
+          lyricsUrl,
+          headers: {
+            'User-Agent': 'Melody Music Player (Advanced Sync)',
+            'Accept': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 6)); // Reduced from 10 to 6 seconds
+
+        if (lyricsResponse.statusCode != 200) {
+          debugPrint('❌ Lyrics fetch failed with status: ${lyricsResponse.statusCode}');
+          if (retryCount < maxRetries) {
+            retryCount++;
+            await Future.delayed(Duration(seconds: retryCount));
+            continue;
+          }
+          return null;
+        }
+
+        final lyricsData = json.decode(lyricsResponse.body);
+        final syncedLyrics = lyricsData['syncedLyrics'] as String?;
+        
+        if (syncedLyrics != null && syncedLyrics.isNotEmpty) {
+          debugPrint('✅ Advanced Sync: Found synced LRC lyrics');
+          return syncedLyrics;
+        }
+
+        // Fall back to plain lyrics if no synced version
+        final plainLyrics = lyricsData['plainLyrics'] as String?;
+        if (plainLyrics != null && plainLyrics.isNotEmpty) {
+          debugPrint('⚠️ Advanced Sync: Using plain lyrics (no sync)');
+          return _convertPlainToLrc(plainLyrics);
+        }
+
+        return null;
+      } on TimeoutException catch (e) {
+        debugPrint('⏱️ API timeout (attempt ${retryCount + 1}): $e');
+        if (retryCount < maxRetries) {
+          retryCount++;
+          await Future.delayed(Duration(seconds: retryCount * 2)); // Longer delay for timeouts
+          continue;
+        }
+        debugPrint('❌ API timeout: All retry attempts failed');
+        return null;
+      } catch (e) {
+        debugPrint('❌ API fetch error (attempt ${retryCount + 1}): $e');
+        if (retryCount < maxRetries && !e.toString().contains('SocketException')) {
+          retryCount++;
+          await Future.delayed(Duration(seconds: retryCount));
+          continue;
+        }
         return null;
       }
-
-      final List<dynamic> searchResults = json.decode(searchResponse.body);
-      if (searchResults.isEmpty) {
-        return null;
-      }
-
-      // Get best match
-      final bestMatch = searchResults.first;
-      final trackId = bestMatch['id'];
-
-      // Get detailed lyrics
-      final lyricsUrl = Uri.parse('https://lrclib.net/api/get/$trackId');
-      final lyricsResponse = await http.get(
-        lyricsUrl,
-        headers: {
-          'User-Agent': 'Melody Music Player (Advanced Sync)',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
-
-      if (lyricsResponse.statusCode != 200) {
-        return null;
-      }
-
-      final lyricsData = json.decode(lyricsResponse.body);
-      final syncedLyrics = lyricsData['syncedLyrics'] as String?;
-      
-      if (syncedLyrics != null && syncedLyrics.isNotEmpty) {
-        debugPrint('✅ Advanced Sync: Found synced LRC lyrics');
-        return syncedLyrics;
-      }
-
-      // Fall back to plain lyrics if no synced version
-      final plainLyrics = lyricsData['plainLyrics'] as String?;
-      if (plainLyrics != null && plainLyrics.isNotEmpty) {
-        debugPrint('⚠️ Advanced Sync: Using plain lyrics (no sync)');
-        return _convertPlainToLrc(plainLyrics);
-      }
-
-      return null;
-    } catch (e) {
-      debugPrint('❌ API fetch error: $e');
-      return null;
     }
+    
+    return null;
   }
 
   /// Convert plain text lyrics to estimated LRC format

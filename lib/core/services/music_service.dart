@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:async';
 import 'notification_service.dart';
 
 class Song {
@@ -70,20 +71,48 @@ class Song {
         // Extract metadata using audio_metadata_reader
         await Future.delayed(Duration.zero); // Yield to event loop
         
-        final metadata = readMetadata(file, getImage: true); // Re-enable album art loading
+        // Add timeout to metadata reading
+        final metadata = await Future.any([
+          Future(() => readMetadata(file, getImage: true)),
+          Future.delayed(const Duration(seconds: 5), () => throw TimeoutException('Metadata timeout', const Duration(seconds: 5))),
+        ]);
         
-        // Extract basic info with null safety
-        title = metadata.title?.isNotEmpty == true ? metadata.title! : nameWithoutExtension;
-        artist = metadata.artist?.isNotEmpty == true ? metadata.artist! : 'Unknown Artist';
-        duration = metadata.duration;
+        // Extract basic info with null safety and better validation
+        if (metadata.title != null && metadata.title!.trim().isNotEmpty) {
+          title = metadata.title!.trim();
+        } else {
+          title = nameWithoutExtension;
+        }
         
-        // Extract album art safely
+        if (metadata.artist != null && metadata.artist!.trim().isNotEmpty) {
+          artist = metadata.artist!.trim();
+        } else {
+          artist = 'Unknown Artist';
+        }
+        
+        // Validate duration
+        if (metadata.duration != null && metadata.duration!.inMilliseconds > 0) {
+          duration = metadata.duration;
+        }
+        
+        // Extract album art safely with size limit
         if (metadata.pictures.isNotEmpty) {
-          albumArt = metadata.pictures.first.bytes;
+          final picture = metadata.pictures.first;
+          if (picture.bytes.length < 5 * 1024 * 1024) { // Limit to 5MB
+            albumArt = picture.bytes;
+          } else {
+            debugPrint('Album art too large for ${file.path}, skipping');
+          }
         }
       } catch (e) {
         debugPrint('Failed to extract metadata for ${file.path}: $e');
-        // Keep default values
+        // Use enhanced fallback logic
+        if (e.toString().contains('FormatException') || e.toString().contains('UnsupportedError')) {
+          debugPrint('Unsupported audio format for ${file.path}, using filename');
+        } else if (e.toString().contains('TimeoutException')) {
+          debugPrint('Metadata extraction timeout for ${file.path}');
+        }
+        // Keep safe default values
       }
       
       return Song(
