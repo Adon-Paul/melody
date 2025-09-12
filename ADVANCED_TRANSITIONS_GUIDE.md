@@ -83,3 +83,7 @@ All transitions are:
 - **Responsive**: Non-blocking animations that don't freeze the UI
 
 The original music scanning and performance characteristics remain unchanged, while you now have beautiful 3D transitions throughout your app!
+
+
+
+Due tro performance issues all have been removed and are using a optimised vcersion of the circlke morph acros the app
