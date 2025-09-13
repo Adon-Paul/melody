@@ -72,10 +72,34 @@
 - **Queue Management**: Dynamic playlist creation and management
 - **Glass Morphism UI**: Modern blur effects and smooth transitions
 
-## 🆕 Latest Features (v2.1.0)
+## 🆕 Latest Features (v2.2.0)
 
-### 🎵 **Advanced Music Management & Performance**
-Our latest update brings professional-grade music functionality with significant performance improvements:
+### 🎵 **Enhanced Lyrics System with Bass-Synchronized Beat Visualization**
+Our newest update revolutionizes the music experience with advanced audio-visual integration:
+
+**🎛️ Bass-Synchronized Beat Visualization**
+- Revolutionary bass-only beat detection with 4 specialized flicker patterns
+- Multi-layer glow effects for cover art and instrumentals (triple-layer system)
+- Genre-specific BPM estimation (40-85 BPM) with 750ms precision timing
+- Dynamic color rotation every 12 bass hits for continuous visual variety
+- Performance-optimized 60fps animations with RepaintBoundary optimization
+
+**🎨 Professional Lyrics Customization**
+- 4 Premium Google Fonts: MedievalSharp, Orbitron, Dancing Script, Cinzel
+- Interactive font size adjustment (16-32px) with real-time preview
+- Performance toggle to completely disable lyrics for maximum efficiency
+- Comprehensive options menu combining all lyrics controls
+- LRCLIB.net integration with proper provider attribution
+
+**🎪 Enhanced User Interface**
+- Compact player layout with optimized spacing throughout
+- Extended lyrics box height (140px → 180px) for better readability
+- Minimalist instrumentals display with music symbol only
+- Consolidated controls with unified options button
+- Real-time settings updates with Consumer pattern implementation
+
+### 🎵 **Advanced Music Management & Performance (v2.1.0)**
+Previous major update brought professional-grade music functionality:
 
 **🎛️ Lyrics System with RGB Effects Control**
 - Professional lyrics display with synchronized highlighting

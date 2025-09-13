@@ -5,6 +5,54 @@ All notable changes to the MELODY music app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-09-13
+
+### 🎵 **Enhanced Lyrics System with Bass-Synchronized Beat Visualization**
+
+#### 🎛️ **Advanced Beat Visualization**
+- **Bass-Only Beat Detection**: Specialized system targeting bass frequencies for enhanced rhythm visualization
+- **4 Bass Flicker Patterns**: Deep thump, double hit, bass drop, and rhythmic bass with unique timing
+- **Multi-Layer Glow Effects**: Triple-layer glow system (inner/outer/extra-wide) for cover art and instrumentals
+- **Genre-Specific BPM Estimation**: Intelligent 40-85 BPM detection with 750ms bass intervals
+- **Dynamic Color Rotation**: Color cycling every 12 bass hits for visual variety
+
+#### 🎨 **Comprehensive Lyrics Customization**
+- **Font Family Selection**: 4 Google Fonts available - MedievalSharp, Orbitron, Dancing Script, Cinzel
+- **Interactive Font Size Adjustment**: Real-time slider control (16-32px) with instant preview
+- **Performance Toggle**: Complete lyrics disable option for maximum performance
+- **Enhanced Options Menu**: Consolidated controls combining all lyrics settings
+- **Lyrics Provider Attribution**: LRCLIB.net integration with proper credit display
+
+#### 🎪 **UI/UX Improvements**
+- **Compact Layout**: Reduced spacing throughout full music player for better screen utilization
+- **Extended Lyrics Box**: Increased height from 140px to 180px for better readability
+- **Cleaner Headers**: Streamlined lyrics box header with consolidated options button
+- **Minimalist Instrumentals**: Removed text labels, showing only music symbol for clean aesthetics
+- **Enhanced Settings Integration**: Lyrics controls accessible from main settings and player
+
+#### 🔧 **Technical Enhancements**
+- **Bass Frequency Simulation**: Advanced algorithm with synchronized timing and alpha values
+- **Consumer Pattern Implementation**: Real-time UI updates with Provider state management
+- **Performance Optimizations**: RepaintBoundary usage for smooth animations at 60fps
+- **Settings Persistence**: SharedPreferences integration for all customization options
+- **Memory Efficiency**: Optimized rendering for complex visual effects
+
+### 🐛 **Bug Fixes & Optimizations**
+- Improved lyrics synchronization accuracy
+- Enhanced performance with complex visual effects
+- Fixed font rendering issues on different screen densities
+- Optimized bass detection algorithm for better accuracy
+- Resolved layout overflow issues with longer song titles
+
+### 🔧 **Technical Changes**
+- Updated settings service architecture for lyrics controls
+- Enhanced visual effects system with multi-layer rendering
+- Improved state management for real-time UI updates
+- Optimized animation performance with targeted repaints
+- Added comprehensive font management system
+
+---
+
 ## [2.1.0] - 2025-01-XX
 
 ### 🎵 **Advanced Music Management & Performance**
