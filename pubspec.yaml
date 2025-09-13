@@ -1,5 +1,5 @@
 name: melody
-description: "A new Flutter project."
+description: "🎵 MELODY - Advanced music app with professional lyrics, intelligent queue management, and stunning 3D transitions. Features RGB effects, drag-and-drop reordering, smart caching, and glass morphism UI for the ultimate music experience."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
