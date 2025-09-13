@@ -5,6 +5,63 @@ All notable changes to the MELODY music app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-01-XX
+
+### 🎵 **Advanced Music Management & Performance**
+
+#### 🎛️ **Lyrics System with RGB Effects Control**
+- **Professional Lyrics Display**: Synchronized highlighting with active song playback
+- **RGB Breathing Effects**: Three customizable modes - Beat sync, RGB effects, or minimal display
+- **Settings Integration**: Granular control over visual effects through dedicated settings service
+- **Smooth Transitions**: Seamless switching between lyrics display modes
+- **Performance Optimized**: 60fps animations with minimal resource usage
+
+#### 🎪 **Advanced Queue Management**
+- **Interactive Queue Modal**: Bottom sheet displaying upcoming songs with visual queue preview
+- **Drag-and-Drop Reordering**: Complete playlist control with intuitive touch interactions
+- **Smart Shuffle Mode**: Predetermined shuffle order display when shuffle is enabled
+- **Visual Track Indicators**: Clear indication of current and upcoming tracks
+- **Tap-to-Play**: Instant song switching from queue with position synchronization
+- **Queue State Persistence**: Maintains queue order across app sessions
+
+#### ⚡ **Performance Optimizations**
+- **Intelligent Device Music Caching**: 24-hour validity system for instant music library access
+- **Batch Processing Engine**: Optimized scanning for large music libraries (1000+ songs)
+- **Real-time Progress Indicators**: Visual feedback during music scanning operations
+- **Memory Optimization**: Efficient scrolling through large music collections
+- **Cache Status Display**: Transparency in cache states with manual refresh capabilities
+- **Background Processing**: Non-blocking UI during intensive operations
+
+#### 🎨 **Enhanced User Experience**
+- **Layout Optimization**: Improved spacing and visual hierarchy throughout the app
+- **Responsive Design**: Enhanced adaptation across different screen sizes and orientations
+- **Glass Morphism Refinements**: Polished blur effects and transparency elements
+- **Navigation Improvements**: Smoother transitions between different app sections
+- **Error Handling**: Graceful degradation and user feedback for edge cases
+
+#### 🔧 **Technical Improvements**
+- **Settings Service**: Comprehensive settings management with export/import capabilities
+- **Shared Preferences Integration**: Persistent storage for user preferences and cache data
+- **Code Architecture**: Improved separation of concerns and service organization
+- **Performance Monitoring**: Built-in metrics for tracking app performance
+- **Memory Management**: Optimized resource usage and garbage collection
+
+### 🐛 **Bug Fixes**
+- Fixed device music page loading performance issues
+- Resolved queue synchronization problems with shuffle mode
+- Improved error handling for music file scanning
+- Fixed layout overflow issues on smaller screens
+- Resolved animation conflicts between different UI components
+
+### 🔧 **Technical Changes**
+- Updated music service architecture for better queue management
+- Enhanced caching system with intelligent invalidation
+- Improved state management for complex UI interactions
+- Optimized build configuration for better performance
+- Code cleanup and refactoring for maintainability
+
+---
+
 ## [2.0.0-beta.1] - 2025-08-24
 
 ### 🖥️ Windows Desktop Beta Release
