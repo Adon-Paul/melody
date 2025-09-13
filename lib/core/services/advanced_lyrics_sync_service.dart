@@ -425,6 +425,25 @@ class AdvancedLyricsSyncService extends ChangeNotifier {
     }
   }
 
+  /// Adjust lyrics sync delay by specified milliseconds
+  void adjustDelay(double deltaMs) {
+    _syncOffset += deltaMs;
+    _saveSettings();
+    notifyListeners();
+  }
+
+  /// Reset lyrics sync delay to zero
+  void resetDelay() {
+    _syncOffset = 0.0;
+    _saveSettings();
+    notifyListeners();
+  }
+
+  /// Get current delay in milliseconds
+  double getDelay() {
+    return _syncOffset;
+  }
+
   /// Clean up resources
   @override
   void dispose() {

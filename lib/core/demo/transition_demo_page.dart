@@ -71,7 +71,7 @@ class TransitionDemoPage extends StatelessWidget {
                         gradientColors: const [Color(0xFF6A5ACD), Color(0xFF9370DB)],
                         onTap: () => Navigator.push(
                           context,
-                          PageTransitions.slideRight(const DemoTargetPage(title: 'Slide Right')),
+                          PageTransitions.circleMorph(const DemoTargetPage(title: 'Circle Morph - Slide Right')),
                         ),
                       ),
                       _TransitionButton(
@@ -81,7 +81,7 @@ class TransitionDemoPage extends StatelessWidget {
                         gradientColors: const [Color(0xFF20B2AA), Color(0xFF48CAE4)],
                         onTap: () => Navigator.push(
                           context,
-                          PageTransitions.slideLeft(const DemoTargetPage(title: 'Slide Left')),
+                          PageTransitions.circleMorph(const DemoTargetPage(title: 'Circle Morph - Slide Left')),
                         ),
                       ),
                       _TransitionButton(
@@ -91,7 +91,7 @@ class TransitionDemoPage extends StatelessWidget {
                         gradientColors: const [Color(0xFF32CD32), Color(0xFF7FFF00)],
                         onTap: () => Navigator.push(
                           context,
-                          PageTransitions.slideUp(const DemoTargetPage(title: 'Elastic Slide Up')),
+                          PageTransitions.circleMorph(const DemoTargetPage(title: 'Circle Morph - Slide Up')),
                         ),
                       ),
                       _TransitionButton(
@@ -101,7 +101,7 @@ class TransitionDemoPage extends StatelessWidget {
                         gradientColors: const [Color(0xFFFF6347), Color(0xFFFF7F7F)],
                         onTap: () => Navigator.push(
                           context,
-                          PageTransitions.flip(const DemoTargetPage(title: '3D Flip')),
+                          PageTransitions.circleMorph(const DemoTargetPage(title: 'Circle Morph - 3D Flip')),
                         ),
                       ),
                       _TransitionButton(
@@ -121,7 +121,7 @@ class TransitionDemoPage extends StatelessWidget {
                         gradientColors: const [Color(0xFF1E90FF), Color(0xFF87CEEB)],
                         onTap: () => Navigator.push(
                           context,
-                          PageTransitions.liquidMorph(const DemoTargetPage(title: 'Liquid Morph')),
+                          PageTransitions.circleMorph(const DemoTargetPage(title: 'Circle Morph - Liquid')),
                         ),
                       ),
                       _TransitionButton(
@@ -131,7 +131,7 @@ class TransitionDemoPage extends StatelessWidget {
                         gradientColors: const [Color(0xFF9932CC), Color(0xFFBA55D3)],
                         onTap: () => Navigator.push(
                           context,
-                          PageTransitions.particleDissolve(const DemoTargetPage(title: 'Particle Dissolve')),
+                          PageTransitions.circleMorph(const DemoTargetPage(title: 'Circle Morph - Particle')),
                         ),
                       ),
                       _TransitionButton(
@@ -141,7 +141,7 @@ class TransitionDemoPage extends StatelessWidget {
                         gradientColors: const [Color(0xFFDC143C), Color(0xFFFF1493)],
                         onTap: () => Navigator.push(
                           context,
-                          PageTransitions.glitch(const DemoTargetPage(title: 'Glitch Effect')),
+                          PageTransitions.circleMorph(const DemoTargetPage(title: 'Circle Morph - Glitch')),
                         ),
                       ),
                     ],

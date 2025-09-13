@@ -8,12 +8,11 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/music_service.dart';
 import '../../core/services/favorites_service.dart';
 import '../../core/transitions/page_transitions.dart';
-import '../../core/transitions/advanced_transitions.dart';
 import '../device_music_page.dart';
 import '../favorites_page.dart';
+import '../spotify_login_page.dart';
 import '../../core/demo/transition_demo_page.dart';
 import '../../ui/auth/login_screen.dart';
-import '../spotify_login_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        PageTransitions.particleDissolve(const LoginScreen()),
+        PageTransitions.circleMorph(const LoginScreen()),
         (route) => false,
       );
     }
@@ -45,8 +44,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: false, // Prevent default back behavior
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          // Show confirmation dialog before exiting app
+          final shouldExit = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Exit App'),
+              content: const Text('Are you sure you want to exit Melody?'),
+              backgroundColor: AppTheme.surfaceColor,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text('Exit', style: TextStyle(color: AppTheme.primaryColor)),
+                ),
+              ],
+            ),
+          );
+          
+          if (shouldExit == true && context.mounted) {
+            // Exit the app
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
         title: Text(
           'MELODY',
           style: AppTheme.headlineMedium.copyWith(
@@ -138,7 +167,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (context, musicService, child) {
                             return GestureDetector(
                               onTap: () {
-                                context.pushFlip3D(const DeviceMusicPage());
+                                Navigator.push(
+                                  context,
+                                  PageTransitions.circleMorph(const DeviceMusicPage()),
+                                );
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(20),
@@ -295,7 +327,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (context, favoritesService, child) {
                             return GestureDetector(
                               onTap: () {
-                                context.pushCircleMorph(const FavoritesPage());
+                                Navigator.push(
+                                  context,
+                                  PageTransitions.circleMorph(const FavoritesPage()),
+                                );
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(20),
@@ -404,7 +439,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         // Spotify Card
                         GestureDetector(
                           onTap: () {
-                            context.pushCircleMorph(const SpotifyLoginPage());
+                            Navigator.push(
+                              context,
+                              PageTransitions.circleMorph(const SpotifyLoginPage()),
+                            );
                           },
                           child: Container(
                             padding: const EdgeInsets.all(20),
@@ -530,6 +568,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'core/widgets/animated_background.dart';
 import 'core/services/music_service.dart';
 import 'core/services/favorites_service.dart';
+import 'core/transitions/page_transitions.dart';
 import 'ui/full_music_player_page.dart';
 
 class DeviceMusicPage extends StatefulWidget {
@@ -412,9 +413,7 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
           // Navigate to full player
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const FullMusicPlayerPage(),
-            ),
+            PageTransitions.circleMorph(const FullMusicPlayerPage()),
           );
         },
       ),

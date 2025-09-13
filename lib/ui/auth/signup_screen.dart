@@ -7,6 +7,7 @@ import '../../core/widgets/modern_text_field.dart';
 import '../../core/widgets/modern_toast.dart';
 import '../../core/widgets/animated_background.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/transitions/page_transitions.dart';
 import 'login_screen.dart';
 import '../home/home_screen.dart';
 
@@ -53,7 +54,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         // Navigate to home screen
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          PageTransitions.circleMorph(const HomeScreen()),
         );
       } else if (mounted) {
         ModernToast.show(
@@ -79,8 +80,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
+    return PopScope(
+      canPop: true, // Allow back to login screen
+      onPopInvokedWithResult: (didPop, result) {
+        // Handle any cleanup when navigating back to login
+        if (didPop) {
+          // Clear any form state if needed
+        }
+      },
+      child: Scaffold(
+        body: Stack(
         children: [
           const AnimatedBackground(),
           SafeArea(
@@ -301,7 +310,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       ),
                                     );
                                     navigator.pushReplacement(
-                                      MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                      PageTransitions.circleMorph(const HomeScreen()),
                                     );
                                   }
                                 } else {
@@ -387,7 +396,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             onPressed: () {
                               Navigator.pushReplacement(
                                 context,
-                                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                PageTransitions.circleMorph(const HomeScreen()),
                               );
                             },
                             variant: ButtonVariant.text,
@@ -410,9 +419,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 onPressed: () {
                                   Navigator.pushReplacement(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const LoginScreen(),
-                                    ),
+                                    PageTransitions.circleMorph(const LoginScreen()),
                                   );
                                 },
                                 child: Text(
@@ -434,6 +441,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

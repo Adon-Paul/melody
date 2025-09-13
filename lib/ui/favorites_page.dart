@@ -239,9 +239,17 @@ class FavoritesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Stack(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        // Handle cleanup when navigating back from favorites
+        if (didPop) {
+          // Clean up any listeners or animations if needed
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.backgroundColor,
+        body: Stack(
         children: [
           const AnimatedBackground(),
           SafeArea(
@@ -380,6 +388,7 @@ class FavoritesPage extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

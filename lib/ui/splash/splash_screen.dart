@@ -7,6 +7,7 @@ import '../../core/widgets/animated_background.dart';
 import '../../core/widgets/modern_toast.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/music_service.dart';
+import '../../core/transitions/page_transitions.dart';
 import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
 
@@ -125,14 +126,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const HomeScreen(),
-            transitionDuration: const Duration(milliseconds: 800),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-          ),
+          PageTransitions.circleMorph(const HomeScreen()),
         );
       }
     } else {
@@ -140,23 +134,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const LoginScreen(),
-            transitionDuration: const Duration(milliseconds: 800),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 1),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                )),
-                child: child,
-              );
-            },
-          ),
+          PageTransitions.circleMorph(const LoginScreen()),
         );
       }
     }

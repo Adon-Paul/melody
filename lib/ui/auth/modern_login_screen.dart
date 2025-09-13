@@ -108,7 +108,7 @@ class _ModernLoginScreenState extends State<ModernLoginScreen>
         
         Navigator.pushReplacement(
           context,
-          PageTransitions.liquidMorph(const HomeScreen()),
+          PageTransitions.circleMorph(const HomeScreen()),
         );
       } else if (authService.errorMessage != null) {
         ModernToast.showInfo(
@@ -127,7 +127,7 @@ class _ModernLoginScreenState extends State<ModernLoginScreen>
     
     Navigator.pushReplacement(
       context,
-      PageTransitions.glitch(const HomeScreen()),
+      PageTransitions.circleMorph(const HomeScreen()),
     );
   }
 
@@ -348,7 +348,7 @@ class _ModernLoginScreenState extends State<ModernLoginScreen>
                           onPressed: () {
                             Navigator.push(
                               context,
-                              PageTransitions.flip(const SignUpScreen()),
+                              PageTransitions.circleMorph(const SignUpScreen()),
                             );
                           },
                           child: Text(

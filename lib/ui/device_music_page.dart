@@ -753,9 +753,18 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Stack(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        // Handle cleanup when navigating back
+        if (didPop) {
+          // Stop any ongoing scan operations
+          // This helps with performance when leaving the page
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.backgroundColor,
+        body: Stack(
         children: [
           const AnimatedBackground(),
           SafeArea(
@@ -983,6 +992,7 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

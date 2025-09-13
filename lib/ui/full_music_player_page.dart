@@ -308,20 +308,65 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
     );
   }
 
+  Widget _buildBottomControlButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    bool isActive = false,
+    double size = 48,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isActive 
+          ? AppTheme.primaryColor.withValues(alpha: 0.2)
+          : Colors.transparent,
+        border: Border.all(
+          color: isActive 
+            ? AppTheme.primaryColor.withValues(alpha: 0.4)
+            : Colors.white.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(size / 2),
+          onTap: onPressed,
+          child: Icon(
+            icon,
+            color: isActive ? AppTheme.primaryColor : Colors.white.withValues(alpha: 0.7),
+            size: size * 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Consumer<MusicService>(
-        builder: (context, musicService, child) {
-          final song = musicService.currentSong;
-          if (song == null) {
-            return const Center(
-              child: Text('No song playing'),
-            );
-          }
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        // Handle any cleanup when back navigation occurs
+        if (didPop) {
+          // Stop album rotation animation when leaving
+          _albumRotationController.stop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.backgroundColor,
+        body: Consumer<MusicService>(
+          builder: (context, musicService, child) {
+            final song = musicService.currentSong;
+            if (song == null) {
+              return const Center(
+                child: Text('No song playing'),
+              );
+            }
 
-          return Stack(
+            return Stack(
             children: [
               const AnimatedBackground(),
               
@@ -357,97 +402,120 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
                               ),
                               onPressed: () => Navigator.pop(context),
                             ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      // Album Art with Swipe Gestures
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Responsive album art size - balanced size
+                          final screenHeight = MediaQuery.of(context).size.height;
+                          final albumSize = screenHeight < 700 ? 260.0 : 300.0;
+                          return GestureDetector(
+                            behavior: HitTestBehavior.deferToChild,
+                            onPanEnd: (details) {
+                              // Handle swipe gestures - only trigger once per swipe
+                              final velocity = details.velocity.pixelsPerSecond;
+                              final horizontalVelocity = velocity.dx;
+                              final verticalVelocity = velocity.dy.abs();
+                              
+                              // Only handle horizontal swipes, ignore vertical swipes (like back gesture)
+                              if (verticalVelocity > horizontalVelocity.abs()) {
+                                return; // This is primarily a vertical swipe, don't handle it
+                              }
+                              
+                              if (horizontalVelocity > 500) {
+                                // Swiping right - play previous song
+                                musicService.playPrevious();
+                                GlassNotification.show(
+                                  context,
+                                  message: 'Previous song',
+                                  icon: Icons.skip_previous_rounded,
+                                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                );
+                              } else if (horizontalVelocity < -500) {
+                                // Swiping left - play next song
+                                musicService.playNext();
+                                GlassNotification.show(
+                                  context,
+                                  message: 'Next song',
+                                  icon: Icons.skip_next_rounded,
+                                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                );
+                              }
+                            },
+                            child: _buildAlbumArt(song, size: albumSize),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 70),
+
+                      // Song Info and Control Button Row
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Row(
+                          children: [
+                            // Song Info on the left
                             Expanded(
-                              child: Text(
-                                'Now Playing',
-                                style: AppTheme.headlineMedium.copyWith(
-                                  color: AppTheme.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    song.title,
+                                    style: AppTheme.headlineMedium.copyWith(
+                                      color: AppTheme.textPrimary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 24,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    song.artist,
+                                    style: AppTheme.titleMedium.copyWith(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 18,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
                             ),
-                            Consumer<FavoritesService>(
-                              builder: (context, favoritesService, child) {
-                                final isFavorite = favoritesService.isFavorite(song.id);
-                                return IconButton(
-                                  icon: Icon(
-                                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                                    color: isFavorite ? Colors.red : AppTheme.textPrimary,
-                                    size: 28,
-                                  ),
-                                  onPressed: () {
-                                    if (isFavorite) {
-                                      favoritesService.removeFavorite(song.id);
-                                      GlassNotification.show(
-                                        context,
-                                        message: 'Removed from favorites',
-                                        icon: Icons.favorite_border,
-                                        backgroundColor: AppTheme.surfaceColor.withValues(alpha: 0.2),
-                                      );
-                                    } else {
-                                      favoritesService.addFavorite(song);
-                                      GlassNotification.show(
-                                        context,
-                                        message: 'Added to favorites',
-                                        icon: Icons.favorite,
-                                        backgroundColor: Colors.red.withValues(alpha: 0.2),
-                                      );
-                                    }
-                                  },
+                            
+                            const SizedBox(width: 16),
+                            
+                            // Pause/Play Button on the right
+                            _buildControlButton(
+                              icon: musicService.isPlaying 
+                                  ? Icons.pause_rounded 
+                                  : Icons.play_arrow_rounded,
+                              onPressed: () {
+                                final wasPlaying = musicService.isPlaying;
+                                musicService.togglePlayPause();
+                                
+                                GlassNotification.show(
+                                  context,
+                                  message: wasPlaying ? 'Paused' : 'Playing',
+                                  icon: wasPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                  backgroundColor: wasPlaying 
+                                      ? AppTheme.surfaceColor.withValues(alpha: 0.2)
+                                      : AppTheme.primaryColor.withValues(alpha: 0.2),
                                 );
                               },
+                              size: 80,
+                              isPrimary: true,
                             ),
                           ],
                         ),
                       ),
 
                       const SizedBox(height: 20),
-
-                      // Album Art
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          // Responsive album art size
-                          final screenHeight = MediaQuery.of(context).size.height;
-                          final albumSize = screenHeight < 700 ? 220.0 : 280.0;
-                          return _buildAlbumArt(song, size: albumSize);
-                        },
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      // Song Info
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Column(
-                          children: [
-                            Text(
-                              song.title,
-                              style: AppTheme.headlineMedium.copyWith(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 24,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              song.artist,
-                              style: AppTheme.titleMedium.copyWith(
-                                color: AppTheme.textSecondary,
-                                fontSize: 18,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 30),
 
                       // Progress Bar
                       Padding(
@@ -513,142 +581,7 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
                         ),
                       ),
 
-                      const SizedBox(height: 20),
-
-                      // Control Buttons
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildControlButton(
-                              icon: Icons.skip_previous_rounded,
-                              onPressed: () {
-                                musicService.playPrevious();
-                                GlassNotification.show(
-                                  context,
-                                  message: 'Previous track',
-                                  icon: Icons.skip_previous_rounded,
-                                );
-                              },
-                              size: 60,
-                            ),
-                            _buildControlButton(
-                              icon: musicService.isPlaying 
-                                  ? Icons.pause_rounded 
-                                  : Icons.play_arrow_rounded,
-                              onPressed: () {
-                                final wasPlaying = musicService.isPlaying;
-                                musicService.togglePlayPause();
-                                
-                                GlassNotification.show(
-                                  context,
-                                  message: wasPlaying ? 'Paused' : 'Playing',
-                                  icon: wasPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                  backgroundColor: wasPlaying 
-                                      ? AppTheme.surfaceColor.withValues(alpha: 0.2)
-                                      : AppTheme.primaryColor.withValues(alpha: 0.2),
-                                );
-                              },
-                              size: 80,
-                              isPrimary: true,
-                            ),
-                            _buildControlButton(
-                              icon: Icons.skip_next_rounded,
-                              onPressed: () {
-                                musicService.playNext();
-                                GlassNotification.show(
-                                  context,
-                                  message: 'Next track',
-                                  icon: Icons.skip_next_rounded,
-                                );
-                              },
-                              size: 60,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Additional Controls Row
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildControlButton(
-                              icon: musicService.isShuffleEnabled 
-                                  ? Icons.shuffle_on_rounded 
-                                  : Icons.shuffle_rounded,
-                              onPressed: () {
-                                musicService.toggleShuffle();
-                                GlassNotification.show(
-                                  context,
-                                  message: musicService.isShuffleEnabled ? 'Shuffle on' : 'Shuffle off',
-                                  icon: Icons.shuffle_rounded,
-                                );
-                              },
-                              size: 50,
-                            ),
-                            _buildControlButton(
-                              icon: musicService.isRepeatEnabled 
-                                  ? Icons.repeat_one_rounded 
-                                  : Icons.repeat_rounded,
-                              onPressed: () {
-                                musicService.toggleRepeat();
-                                GlassNotification.show(
-                                  context,
-                                  message: musicService.isRepeatEnabled ? 'Repeat on' : 'Repeat off',
-                                  icon: Icons.repeat_rounded,
-                                );
-                              },
-                              size: 50,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Volume Control
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.volume_down,
-                              color: AppTheme.textSecondary,
-                            ),
-                            Expanded(
-                              child: SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                                  activeTrackColor: AppTheme.primaryColor,
-                                  inactiveTrackColor: AppTheme.textSecondary.withValues(alpha: 0.3),
-                                  thumbColor: AppTheme.primaryColor,
-                                  overlayColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-                                ),
-                                child: Slider(
-                                  value: musicService.volume,
-                                  min: 0,
-                                  max: 1,
-                                  onChanged: (value) {
-                                    musicService.setVolume(value);
-                                  },
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.volume_up,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ],
-                        ),
-                      ),
-
+                      // Reduced spacing for better screen fit
                       const SizedBox(height: 20),
 
                       // Compact Lyrics Widget
@@ -656,7 +589,98 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
                         showTimestamps: false,
                       ),
 
+                      // Reduced space for better screen fit
                       const SizedBox(height: 20),
+
+                      // Bottom Control Bar moved to the very bottom
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(25),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              // Shuffle Button
+                              Consumer<MusicService>(
+                                builder: (context, musicService, child) {
+                                  return _buildBottomControlButton(
+                                    icon: musicService.isShuffleEnabled 
+                                        ? Icons.shuffle_on_rounded 
+                                        : Icons.shuffle_rounded,
+                                    isActive: musicService.isShuffleEnabled,
+                                    onPressed: () {
+                                      musicService.toggleShuffle();
+                                      GlassNotification.show(
+                                        context,
+                                        message: musicService.isShuffleEnabled ? 'Shuffle on' : 'Shuffle off',
+                                        icon: Icons.shuffle_rounded,
+                                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                              // Favorite Button
+                              Consumer<FavoritesService>(
+                                builder: (context, favoritesService, child) {
+                                  final isFavorite = favoritesService.isFavorite(song.id);
+                                  return _buildBottomControlButton(
+                                    icon: isFavorite ? Icons.favorite : Icons.favorite_border,
+                                    isActive: isFavorite,
+                                    onPressed: () {
+                                      if (isFavorite) {
+                                        favoritesService.removeFavorite(song.id);
+                                        GlassNotification.show(
+                                          context,
+                                          message: 'Removed from favorites',
+                                          icon: Icons.favorite_border,
+                                          backgroundColor: AppTheme.surfaceColor.withValues(alpha: 0.2),
+                                        );
+                                      } else {
+                                        favoritesService.addFavorite(song);
+                                        GlassNotification.show(
+                                          context,
+                                          message: 'Added to favorites',
+                                          icon: Icons.favorite,
+                                          backgroundColor: Colors.red.withValues(alpha: 0.2),
+                                        );
+                                      }
+                                    },
+                                  );
+                                },
+                              ),
+                              // Repeat Button
+                              Consumer<MusicService>(
+                                builder: (context, musicService, child) {
+                                  return _buildBottomControlButton(
+                                    icon: musicService.isRepeatEnabled 
+                                        ? Icons.repeat_one_rounded 
+                                        : Icons.repeat_rounded,
+                                    isActive: musicService.isRepeatEnabled,
+                                    onPressed: () {
+                                      musicService.toggleRepeat();
+                                      GlassNotification.show(
+                                        context,
+                                        message: musicService.isRepeatEnabled ? 'Repeat on' : 'Repeat off',
+                                        icon: Icons.repeat_rounded,
+                                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -664,6 +688,7 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
             ],
           );
         },
+      ),
       ),
     );
   }
