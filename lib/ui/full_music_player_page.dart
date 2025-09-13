@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import '../core/theme/app_theme.dart';
@@ -6,7 +7,7 @@ import '../core/services/music_service.dart';
 import '../core/services/favorites_service.dart';
 import '../core/services/advanced_lyrics_sync_service.dart';
 import '../core/services/beat_visualizer_service.dart';
-import '../core/widgets/animated_background.dart';
+import '../core/services/settings_service.dart';
 import '../core/widgets/glass_notification.dart';
 import 'widgets/compact_lyrics_widget.dart';
 
@@ -19,7 +20,6 @@ class FullMusicPlayerPage extends StatefulWidget {
 
 class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
     with TickerProviderStateMixin {
-  late AnimationController _albumRotationController;
   late AnimationController _fadeController;
   late AnimationController _lyricsController;
   late AnimationController _albumTransitionController;
@@ -32,6 +32,11 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
   MusicService? _musicService;
   AdvancedLyricsSyncService? _lyricsService;
   late BeatVisualizerService _beatVisualizer;
+  
+  // RGB Breathing animation for when beat effects are disabled
+  late AnimationController _breathingController;
+  late Animation<Color?> _rgbAnimation;
+  
   String? _lastLoadedSong; // Track the last song we loaded lyrics for
   Song? _currentDisplayedSong; // Track currently displayed song for transitions
   Song? _previousDisplayedSong; // Track previous song for transition
@@ -41,10 +46,7 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
   void initState() {
     super.initState();
     _beatVisualizer = BeatVisualizerService();
-    _albumRotationController = AnimationController(
-      duration: const Duration(seconds: 20),
-      vsync: this,
-    );
+    _initializeBreathingAnimation();
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -82,11 +84,6 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
     // Store reference to music service for safer disposal
     _musicService = context.read<MusicService>();
     _lyricsService = context.read<AdvancedLyricsSyncService>();
-    
-    // Start album rotation if playing
-    if (_musicService!.isPlaying) {
-      _albumRotationController.repeat();
-    }
 
     // Listen for song changes to update lyrics
     _musicService!.addListener(_onSongChanged);
@@ -126,11 +123,11 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
     _musicService?.removeListener(_onSongChanged);
     
     // Dispose animation controllers
-    _albumRotationController.dispose();
     _fadeController.dispose();
     _lyricsController.dispose();
     _albumTransitionController.dispose();
     _lyricsScrollController.dispose();
+    _breathingController.dispose();
     
     super.dispose();
   }
@@ -201,6 +198,67 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
     return '$minutes:$seconds';
+  }
+
+  String _getFileFormat(String path) {
+    final extension = path.split('.').last.toUpperCase();
+    return extension;
+  }
+
+  void _initializeBreathingAnimation() {
+    _breathingController = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    );
+    
+    _rgbAnimation = TweenSequence<Color?>([
+      TweenSequenceItem(
+        tween: ColorTween(begin: Colors.red, end: Colors.green),
+        weight: 1.0,
+      ),
+      TweenSequenceItem(
+        tween: ColorTween(begin: Colors.green, end: Colors.blue),
+        weight: 1.0,
+      ),
+      TweenSequenceItem(
+        tween: ColorTween(begin: Colors.blue, end: Colors.red),
+        weight: 1.0,
+      ),
+    ]).animate(_breathingController);
+    
+    _breathingController.repeat();
+  }
+
+  /// Apply either beat glow or RGB breathing effect based on beat visualizer state and settings
+  BoxDecoration _getGlowDecoration(BoxDecoration baseDecoration) {
+    final settingsService = Provider.of<SettingsService>(context, listen: false);
+    
+    if (_beatVisualizer.isEnabled) {
+      // Use beat-synchronized glow
+      return _beatVisualizer.applyBeatGlow(baseDecoration);
+    } else if (settingsService.rgbEffectsEnabled) {
+      // Use RGB breathing effect
+      return baseDecoration.copyWith(
+        boxShadow: [
+          ...?baseDecoration.boxShadow,
+          BoxShadow(
+            color: _rgbAnimation.value?.withValues(alpha: 0.8) ?? Colors.cyan.withValues(alpha: 0.5),
+            blurRadius: 20.0,
+            spreadRadius: 5.0,
+            offset: Offset.zero,
+          ),
+          BoxShadow(
+            color: _rgbAnimation.value?.withValues(alpha: 0.5) ?? Colors.cyan.withValues(alpha: 0.3),
+            blurRadius: 35.0,
+            spreadRadius: 8.0,
+            offset: Offset.zero,
+          ),
+        ],
+      );
+    } else {
+      // No effects
+      return baseDecoration;
+    }
   }
 
   void _updateAnimationDirection(bool isForward) {
@@ -293,13 +351,6 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
 
     return Consumer<MusicService>(
       builder: (context, musicService, child) {
-        // Control rotation based on play state
-        if (musicService.isPlaying && !_albumRotationController.isAnimating) {
-          _albumRotationController.repeat();
-        } else if (!musicService.isPlaying && _albumRotationController.isAnimating) {
-          _albumRotationController.stop();
-        }
-
         return Container(
           width: size,
           height: size,
@@ -336,10 +387,7 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
                               curve: Curves.easeInCubic,
                             ),
                           ).value,
-                          child: RotationTransition(
-                            turns: _albumRotationController,
-                            child: _buildAlbumArtWidget(_previousDisplayedSong!, size),
-                          ),
+                          child: _buildAlbumArtWidget(_previousDisplayedSong!, size),
                         ),
                       ),
                     ),
@@ -360,10 +408,7 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
                             curve: Curves.easeOutCubic,
                           ),
                         ).value,
-                        child: RotationTransition(
-                          turns: _albumRotationController,
-                          child: _buildAlbumArtWidget(song, size),
-                        ),
+                        child: _buildAlbumArtWidget(song, size),
                       ),
                     ),
                   ),
@@ -396,12 +441,12 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
       albumWidget = _buildGeneratedAlbumArt(song, size);
     }
 
-    // Wrap with beat-synchronized glow effect
+    // Wrap with beat-synchronized glow effect or RGB breathing effect
     return AnimatedBuilder(
-      animation: _beatVisualizer,
+      animation: Listenable.merge([_beatVisualizer, _breathingController]),
       builder: (context, child) {
         return Container(
-          decoration: _beatVisualizer.applyBeatGlow(
+          decoration: _getGlowDecoration(
             BoxDecoration(
               borderRadius: BorderRadius.circular(size * 0.1),
               boxShadow: [
@@ -542,6 +587,426 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
     );
   }
 
+  void _showQueueDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Consumer<MusicService>(
+        builder: (context, musicService, child) {
+          final playlist = musicService.playlist;
+          final currentSong = musicService.currentSong;
+          final currentIndex = currentSong != null 
+              ? playlist.indexWhere((song) => song.id == currentSong.id)
+              : -1;
+          
+          // Get upcoming songs based on shuffle mode
+          final upcomingSongs = musicService.isShuffleEnabled
+              ? musicService.upcomingShuffledSongs
+              : (currentIndex >= 0 
+                  ? playlist.sublist(currentIndex)
+                  : playlist);
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              border: Border.all(
+                color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            musicService.isShuffleEnabled 
+                                ? Icons.shuffle_on_rounded 
+                                : Icons.queue_music_rounded,
+                            color: AppTheme.primaryColor,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            musicService.isShuffleEnabled ? 'Shuffle Queue' : 'Up Next',
+                            style: AppTheme.titleLarge.copyWith(
+                              color: AppTheme.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${upcomingSongs.length} songs',
+                            style: AppTheme.bodyMedium.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (upcomingSongs.length > 1)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Row(
+                            children: [
+                              Icon(
+                                musicService.isShuffleEnabled 
+                                    ? Icons.shuffle_rounded 
+                                    : Icons.drag_handle_rounded,
+                                size: 16,
+                                color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                musicService.isShuffleEnabled 
+                                    ? 'Shuffled order • Tap to play'
+                                    : 'Drag to reorder • Tap to play',
+                                style: AppTheme.bodySmall.copyWith(
+                                  color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // Queue List
+                Expanded(
+                  child: upcomingSongs.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.music_off_rounded,
+                                size: 48,
+                                color: AppTheme.textSecondary.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No upcoming songs',
+                                style: AppTheme.bodyLarge.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : musicService.isShuffleEnabled
+                          ? ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: upcomingSongs.length,
+                              itemBuilder: (context, index) {
+                                final song = upcomingSongs[index];
+                                final isCurrentSong = currentSong?.id == song.id;
+                                
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: isCurrentSong 
+                                        ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                                        : AppTheme.cardColor.withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isCurrentSong 
+                                          ? AppTheme.primaryColor.withValues(alpha: 0.3)
+                                          : Colors.transparent,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    leading: Container(
+                                      width: 50,
+                                      height: 50,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        gradient: LinearGradient(
+                                          colors: _getArtistColors(song.artist, song.title),
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                      ),
+                                      child: song.albumArt != null
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: Image.memory(
+                                                song.albumArt!,
+                                                width: 50,
+                                                height: 50,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) {
+                                                  return Center(
+                                                    child: Text(
+                                                      song.artist.isNotEmpty ? song.artist[0].toUpperCase() : '♪',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 20,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            )
+                                          : Center(
+                                              child: Text(
+                                                song.artist.isNotEmpty ? song.artist[0].toUpperCase() : '♪',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                    ),
+                                    title: Text(
+                                      song.title,
+                                      style: AppTheme.bodyLarge.copyWith(
+                                        color: isCurrentSong 
+                                            ? AppTheme.primaryColor 
+                                            : AppTheme.textPrimary,
+                                        fontWeight: isCurrentSong ? FontWeight.bold : FontWeight.normal,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    subtitle: Text(
+                                      song.artist,
+                                      style: AppTheme.bodyMedium.copyWith(
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (isCurrentSong)
+                                          Icon(
+                                            Icons.play_arrow_rounded,
+                                            color: AppTheme.primaryColor,
+                                            size: 24,
+                                          )
+                                        else
+                                          Text(
+                                            '${index + 1}',
+                                            style: AppTheme.bodySmall.copyWith(
+                                              color: AppTheme.textSecondary,
+                                            ),
+                                          ),
+                                        const SizedBox(width: 8),
+                                        // Shuffle indicator for non-current songs
+                                        if (!isCurrentSong)
+                                          Icon(
+                                            Icons.shuffle_rounded,
+                                            color: AppTheme.primaryColor.withValues(alpha: 0.7),
+                                            size: 16,
+                                          ),
+                                      ],
+                                    ),
+                                    onTap: () {
+                                      // In shuffle mode, we need to find the song in the shuffled queue
+                                      if (!isCurrentSong) {
+                                        final shuffledSongs = musicService.upcomingShuffledSongs;
+                                        final songIndex = shuffledSongs.indexWhere((s) => s.id == song.id);
+                                        if (songIndex >= 0) {
+                                          // Calculate actual playlist index
+                                          final actualIndex = playlist.indexWhere((s) => s.id == song.id);
+                                          musicService.playFromPlaylist(playlist, actualIndex);
+                                          Navigator.pop(context);
+                                          GlassNotification.show(
+                                            context,
+                                            message: 'Playing ${song.title}',
+                                            icon: Icons.play_arrow_rounded,
+                                            backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                          );
+                                        }
+                                      }
+                                    },
+                                  ),
+                                );
+                              },
+                            )
+                          : ReorderableListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: upcomingSongs.length,
+                          onReorder: (oldIndex, newIndex) {
+                            // Handle reordering in the main playlist
+                            final actualOldIndex = currentIndex + oldIndex;
+                            final actualNewIndex = currentIndex + newIndex;
+                            
+                            // Don't allow reordering the currently playing song
+                            if (oldIndex == 0) return;
+                            
+                            // Adjust newIndex if it's after the removed item
+                            int adjustedNewIndex = actualNewIndex;
+                            if (actualNewIndex > actualOldIndex) {
+                              adjustedNewIndex--;
+                            }
+                            
+                            // Provide haptic feedback
+                            HapticFeedback.mediumImpact();
+                            
+                            musicService.reorderPlaylist(actualOldIndex, adjustedNewIndex);
+                            
+                            GlassNotification.show(
+                              context,
+                              message: 'Queue reordered',
+                              icon: Icons.swap_vert_rounded,
+                              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                            );
+                          },
+                          itemBuilder: (context, index) {
+                            final song = upcomingSongs[index];
+                            final isCurrentSong = currentSong?.id == song.id;
+                            
+                            return Container(
+                              key: ValueKey(song.id), // Important for reordering
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                color: isCurrentSong 
+                                    ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                                    : AppTheme.cardColor.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isCurrentSong 
+                                      ? AppTheme.primaryColor.withValues(alpha: 0.3)
+                                      : Colors.transparent,
+                                  width: 1,
+                                ),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                leading: Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    gradient: LinearGradient(
+                                      colors: _getArtistColors(song.artist, song.title),
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                  ),
+                                  child: song.albumArt != null
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.memory(
+                                            song.albumArt!,
+                                            width: 50,
+                                            height: 50,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Center(
+                                                child: Text(
+                                                  song.artist.isNotEmpty ? song.artist[0].toUpperCase() : '♪',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        )
+                                      : Center(
+                                          child: Text(
+                                            song.artist.isNotEmpty ? song.artist[0].toUpperCase() : '♪',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                                title: Text(
+                                  song.title,
+                                  style: AppTheme.bodyLarge.copyWith(
+                                    color: isCurrentSong 
+                                        ? AppTheme.primaryColor 
+                                        : AppTheme.textPrimary,
+                                    fontWeight: isCurrentSong ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text(
+                                  song.artist,
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isCurrentSong)
+                                      Icon(
+                                        Icons.play_arrow_rounded,
+                                        color: AppTheme.primaryColor,
+                                        size: 24,
+                                      )
+                                    else
+                                      Text(
+                                        '${index + 1}',
+                                        style: AppTheme.bodySmall.copyWith(
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                      ),
+                                    const SizedBox(width: 8),
+                                    // Drag handle - only show for non-current songs
+                                    if (!isCurrentSong)
+                                      Icon(
+                                        Icons.drag_handle_rounded,
+                                        color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                                        size: 20,
+                                      ),
+                                  ],
+                                ),
+                                onTap: () {
+                                  if (!isCurrentSong) {
+                                    final actualIndex = currentIndex + index;
+                                    musicService.playFromPlaylist(playlist, actualIndex);
+                                    Navigator.pop(context);
+                                    GlassNotification.show(
+                                      context,
+                                      message: 'Playing ${song.title}',
+                                      icon: Icons.play_arrow_rounded,
+                                      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                    );
+                                  }
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -550,9 +1015,6 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
         // Handle back gesture by minimizing to mini player
         if (!didPop) {
           try {
-            // Stop album rotation animation when minimizing
-            _albumRotationController.stop();
-            
             // Add a subtle fade out animation before navigating back
             if (_fadeController.status != AnimationStatus.reverse) {
               await _fadeController.reverse();
@@ -631,8 +1093,6 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
                 height: double.infinity,
                 child: Stack(
                   children: [
-                    const AnimatedBackground(),
-                    
                     // Glass overlay for better readability
                     Container(
                     decoration: BoxDecoration(
@@ -669,82 +1129,132 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
                         ),
                       ),
 
-                      const SizedBox(height: 15),
-
-                      // Album Art
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          // Responsive album art size - balanced size
-                          final screenHeight = MediaQuery.of(context).size.height;
-                          final albumSize = screenHeight < 700 ? 260.0 : 300.0;
-                          return _buildAlbumArt(song, size: albumSize);
-                        },
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Song Info and Control Button Row
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Row(
-                          children: [
-                            // Song Info on the left
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    song.title,
-                                    style: AppTheme.headlineMedium.copyWith(
-                                      color: AppTheme.textPrimary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 24,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    song.artist,
-                                    style: AppTheme.titleMedium.copyWith(
-                                      color: AppTheme.textSecondary,
-                                      fontSize: 18,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
+                      // Main Player Box - Album Art, Title, Artist, and Play Button
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cardColor.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
                             ),
-                            
-                            const SizedBox(width: 16),
-                            
-                            // Pause/Play Button on the right
-                            _buildControlButton(
-                              icon: musicService.isPlaying 
-                                  ? Icons.pause_rounded 
-                                  : Icons.play_arrow_rounded,
-                              onPressed: () {
-                                final wasPlaying = musicService.isPlaying;
-                                musicService.togglePlayPause();
-                                
-                                GlassNotification.show(
-                                  context,
-                                  message: wasPlaying ? 'Paused' : 'Playing',
-                                  icon: wasPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                  backgroundColor: wasPlaying 
-                                      ? AppTheme.surfaceColor.withValues(alpha: 0.2)
-                                      : AppTheme.primaryColor.withValues(alpha: 0.2),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            // Album Art with Format Tag
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                // Responsive album art size - balanced size
+                                final screenHeight = MediaQuery.of(context).size.height;
+                                final albumSize = screenHeight < 700 ? 220.0 : 260.0;
+                                return Stack(
+                                  children: [
+                                    _buildAlbumArt(song, size: albumSize),
+                                    // Format Tag
+                                    Positioned(
+                                      bottom: 8,
+                                      right: 8,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryColor.withValues(alpha: 0.9),
+                                          borderRadius: BorderRadius.circular(8),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.3),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          _getFileFormat(song.path),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 );
                               },
-                              size: 80,
-                              isPrimary: true,
+                            ),
+
+                            const SizedBox(height: 24),
+
+                            // Song Info and Control Button Row
+                            Row(
+                              children: [
+                                // Song Info on the left
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        song.title,
+                                        style: AppTheme.headlineMedium.copyWith(
+                                          color: AppTheme.textPrimary,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 24,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        song.artist,
+                                        style: AppTheme.titleMedium.copyWith(
+                                          color: AppTheme.textSecondary,
+                                          fontSize: 18,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                
+                                const SizedBox(width: 16),
+                                
+                                // Pause/Play Button on the right
+                                _buildControlButton(
+                                  icon: musicService.isPlaying 
+                                      ? Icons.pause_rounded 
+                                      : Icons.play_arrow_rounded,
+                                  onPressed: () {
+                                    final wasPlaying = musicService.isPlaying;
+                                    musicService.togglePlayPause();
+                                    
+                                    GlassNotification.show(
+                                      context,
+                                      message: wasPlaying ? 'Paused' : 'Playing',
+                                      icon: wasPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                      backgroundColor: wasPlaying 
+                                          ? AppTheme.surfaceColor.withValues(alpha: 0.2)
+                                          : AppTheme.primaryColor.withValues(alpha: 0.2),
+                                    );
+                                  },
+                                  size: 80,
+                                  isPrimary: true,
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
 
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 16),
 
                       // Progress Bar
                       Padding(
@@ -811,7 +1321,7 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
                       ),
 
                       // Reduced spacing for better screen fit
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
                       // Compact Lyrics Widget
                       const CompactLyricsWidget(
@@ -885,6 +1395,11 @@ class _FullMusicPlayerPageState extends State<FullMusicPlayerPage>
                                     },
                                   );
                                 },
+                              ),
+                              // Queue Button
+                              _buildBottomControlButton(
+                                icon: Icons.queue_music_rounded,
+                                onPressed: _showQueueDialog,
                               ),
                               // Repeat Button
                               Consumer<MusicService>(

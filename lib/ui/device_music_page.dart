@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
@@ -130,9 +132,18 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
   List<MusicFileMetadata> _musicFiles = [];
   List<MusicFileMetadata> _filteredFiles = [];
   bool _loading = true;
+  bool _loadingFromCache = true;
   String? _error;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _usingCache = false;
+  int _loadedCount = 0;
+  int _totalCount = 0;
+  
+  // Cache configuration
+  static const String _cacheKey = 'device_music_cache_v2';
+  static const String _lastScanTimeKey = 'last_scan_time_v2';
+  static const Duration _cacheValidDuration = Duration(hours: 24);
 
   @override
   void initState() {
@@ -162,15 +173,133 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
     }
   }
 
+  // Cache methods
+  Future<bool> _isCacheValid() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastScanTime = prefs.getInt(_lastScanTimeKey) ?? 0;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return now - lastScanTime < _cacheValidDuration.inMilliseconds && 
+           prefs.containsKey(_cacheKey);
+  }
+
+  Future<List<MusicFileMetadata>?> _loadMusicCache() async {
+    try {
+      if (!await _isCacheValid()) return null;
+      
+      final prefs = await SharedPreferences.getInstance();
+      final cacheString = prefs.getString(_cacheKey);
+      if (cacheString == null) return null;
+      
+      final cacheData = jsonDecode(cacheString) as List<dynamic>;
+      final musicFiles = <MusicFileMetadata>[];
+      
+      for (final item in cacheData) {
+        try {
+          final map = item as Map<String, dynamic>;
+          
+          // Verify file still exists
+          final file = File(map['path'] as String);
+          if (!await file.exists()) continue;
+          
+          musicFiles.add(MusicFileMetadata(
+            path: map['path'] as String,
+            title: map['title'] as String,
+            artist: map['artist'] as String,
+            album: map['album'] as String,
+            duration: map['duration'] != null 
+                ? Duration(milliseconds: map['duration'] as int) 
+                : null,
+            format: map['format'] as String,
+            fileName: map['fileName'] as String,
+            fileSize: map['fileSize'] as int,
+            albumArt: map['albumArt'] != null 
+                ? base64Decode(map['albumArt'] as String) 
+                : null,
+            genre: map['genre'] as String?,
+            year: map['year'] as int?,
+            trackNumber: map['trackNumber'] as int?,
+          ));
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      return musicFiles;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> _saveMusicCache(List<MusicFileMetadata> musicFiles) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Convert music files to JSON-serializable format
+      final cacheData = musicFiles.map((file) => {
+        'path': file.path,
+        'title': file.title,
+        'artist': file.artist,
+        'album': file.album,
+        'duration': file.duration?.inMilliseconds,
+        'format': file.format,
+        'fileName': file.fileName,
+        'fileSize': file.fileSize,
+        'albumArt': file.albumArt != null ? base64Encode(file.albumArt!) : null,
+        'genre': file.genre,
+        'year': file.year,
+        'trackNumber': file.trackNumber,
+      }).toList();
+      
+      await prefs.setString(_cacheKey, jsonEncode(cacheData));
+      await prefs.setInt(_lastScanTimeKey, DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint('Error saving music cache: $e');
+    }
+  }
+
+  Future<void> _clearCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_cacheKey);
+    await prefs.remove(_lastScanTimeKey);
+  }
+
+  Future<void> _refreshMusicFiles() async {
+    // Clear cache and reload
+    await _clearCache();
+    await _loadMusicFiles();
+  }
+
   Future<void> _loadMusicFiles() async {
     if (mounted) {
       setState(() {
         _loading = true;
+        _loadingFromCache = true;
         _error = null;
       });
     }
 
     try {
+      // First, try to load from cache
+      final cachedMusic = await _loadMusicCache();
+      if (cachedMusic != null && cachedMusic.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _musicFiles = cachedMusic;
+            _filteredFiles = cachedMusic;
+            _loading = false;
+            _loadingFromCache = false;
+            _usingCache = true;
+          });
+        }
+        return; // Exit early if cache is valid
+      }
+
+      if (mounted) {
+        setState(() {
+          _loadingFromCache = false;
+          _usingCache = false;
+        });
+      }
       if (Platform.isAndroid) {
         bool permissionGranted = false;
         
@@ -254,8 +383,15 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
             }
           }
 
+          // Set total count for progress tracking
+          if (mounted) {
+            setState(() {
+              _totalCount = allMusicFiles.length;
+            });
+          }
+
           // Convert to metadata format with progress tracking and batching
-          const batchSize = 3; // Smaller batches for real metadata extraction
+          const batchSize = 5; // Optimized batch size
           for (int i = 0; i < allMusicFiles.length; i += batchSize) {
             final batch = allMusicFiles.skip(i).take(batchSize).toList();
             
@@ -273,13 +409,14 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
             // Update UI with current progress
             if (mounted) {
               setState(() {
+                _loadedCount = musicWithMetadata.length;
                 _musicFiles = List.from(musicWithMetadata);
                 _filteredFiles = List.from(musicWithMetadata);
               });
             }
             
-            // Small delay to prevent UI blocking
-            await Future.delayed(const Duration(milliseconds: 50));
+            // Reduced delay for better responsiveness
+            await Future.delayed(const Duration(milliseconds: 25));
           }
         } catch (e) {
           if (mounted) {
@@ -289,6 +426,11 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
             });
           }
           return;
+        }
+
+        // Cache the results for future use
+        if (musicWithMetadata.isNotEmpty) {
+          await _saveMusicCache(musicWithMetadata);
         }
 
         if (mounted) {
@@ -790,22 +932,56 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
                             onPressed: () => Navigator.pop(context),
                           ),
                           Expanded(
-                            child: Text(
-                              'Device Music',
-                              style: AppTheme.headlineMedium.copyWith(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.bold,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Device Music',
+                                  style: AppTheme.headlineMedium.copyWith(
+                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (_loading && _loadingFromCache)
+                                  Text(
+                                    'Loading from cache...',
+                                    style: AppTheme.bodySmall.copyWith(
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  )
+                                else if (_loading && !_loadingFromCache && _totalCount > 0)
+                                  Text(
+                                    'Scanning $_loadedCount/$_totalCount files',
+                                    style: AppTheme.bodySmall.copyWith(
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  )
+                                else if (_usingCache)
+                                  Text(
+                                    'Cached • ${_musicFiles.length} files',
+                                    style: AppTheme.bodySmall.copyWith(
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  )
+                                else if (!_loading)
+                                  Text(
+                                    '${_musicFiles.length} files found',
+                                    style: AppTheme.bodySmall.copyWith(
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (!_loading)
+                            IconButton(
+                              icon: Icon(
+                                Icons.refresh_rounded,
+                                color: AppTheme.primaryColor,
                               ),
-                              textAlign: TextAlign.center,
+                              onPressed: _refreshMusicFiles,
+                              tooltip: 'Refresh and clear cache',
                             ),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.refresh_rounded,
-                              color: AppTheme.primaryColor,
-                            ),
-                            onPressed: _loadMusicFiles,
-                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -878,16 +1054,53 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              CircularProgressIndicator(
-                                color: AppTheme.primaryColor,
+                              SizedBox(
+                                width: 60,
+                                height: 60,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 4,
+                                  color: AppTheme.primaryColor,
+                                ),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 24),
                               Text(
-                                'Scanning for music files...',
+                                _loadingFromCache 
+                                    ? 'Loading from cache...'
+                                    : 'Scanning for music files...',
+                                style: AppTheme.titleMedium.copyWith(
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _loadingFromCache 
+                                    ? 'This should be quick!'
+                                    : _totalCount > 0 
+                                        ? 'Processing $_loadedCount of $_totalCount files'
+                                        : 'This may take a moment',
                                 style: AppTheme.bodyMedium.copyWith(
                                   color: AppTheme.textSecondary,
                                 ),
                               ),
+                              if (!_loadingFromCache && _totalCount > 0) ...[
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: 200,
+                                  child: LinearProgressIndicator(
+                                    value: _totalCount > 0 ? _loadedCount / _totalCount : null,
+                                    backgroundColor: AppTheme.surfaceColor,
+                                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${((_loadedCount / _totalCount) * 100).toStringAsFixed(0)}% complete',
+                                  style: AppTheme.bodySmall.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         )

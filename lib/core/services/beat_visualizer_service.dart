@@ -11,7 +11,7 @@ class BeatVisualizerService extends ChangeNotifier {
   // Animation controllers and values
   double _flickerIntensity = 0.0;
   Color _glowColor = Colors.cyan;
-  bool _isEnabled = true;
+  bool _isEnabled = false;  // Disabled by default - RGB glow will be shown instead
   
   // Bass detection parameters
   double _estimatedBassBPM = 80.0; // Focus on bass frequencies (typically slower)

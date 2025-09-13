@@ -159,6 +159,8 @@ class MusicService extends ChangeNotifier {
   
   List<Song> _songs = [];
   List<Song> _playlist = [];
+  List<int> _shuffledIndices = []; // Stores the shuffled order of indices
+  int _shuffledPosition = 0; // Current position in shuffled queue
   Song? _currentSong;
   bool _isPlaying = false;
   bool _isLoading = false;
@@ -745,6 +747,14 @@ class MusicService extends ChangeNotifier {
         _currentPlaylistIndex = 0;
       }
       
+      // Update shuffled position if shuffle is enabled
+      if (_isShuffleEnabled && _shuffledIndices.isNotEmpty) {
+        _shuffledPosition = _shuffledIndices.indexOf(_currentPlaylistIndex);
+        if (_shuffledPosition == -1) {
+          _shuffledPosition = 0;
+        }
+      }
+      
       await _audioPlayer.setFilePath(_currentSong!.path);
       await _audioPlayer.play();
       
@@ -772,7 +782,40 @@ class MusicService extends ChangeNotifier {
     
     _playlist = List.from(playlist);
     _currentPlaylistIndex = index;
+    
+    // Generate shuffled queue if shuffle is enabled
+    if (_isShuffleEnabled) {
+      _generateShuffledQueue();
+    }
+    
     await playSong(playlist[index], userInitiated: userInitiated);
+  }
+
+  // Reorder songs in the current playlist
+  void reorderPlaylist(int oldIndex, int newIndex) {
+    if (_playlist.isEmpty || oldIndex == newIndex) return;
+    if (oldIndex < 0 || oldIndex >= _playlist.length) return;
+    if (newIndex < 0 || newIndex >= _playlist.length) return;
+
+    // Remove the song from old position
+    final Song song = _playlist.removeAt(oldIndex);
+    
+    // Insert at new position
+    _playlist.insert(newIndex, song);
+    
+    // Update current playlist index if needed
+    if (_currentPlaylistIndex == oldIndex) {
+      // Current song was moved
+      _currentPlaylistIndex = newIndex;
+    } else if (oldIndex < _currentPlaylistIndex && newIndex >= _currentPlaylistIndex) {
+      // Song moved from before current to after current
+      _currentPlaylistIndex--;
+    } else if (oldIndex > _currentPlaylistIndex && newIndex <= _currentPlaylistIndex) {
+      // Song moved from after current to before current
+      _currentPlaylistIndex++;
+    }
+    
+    notifyListeners();
   }
 
   // Play/pause current song
@@ -814,14 +857,16 @@ class MusicService extends ChangeNotifier {
   Future<void> playNext() async {
     if (_playlist.isEmpty) return;
     
-    if (_isShuffleEnabled) {
-      // Play random song (excluding current)
-      final availableIndices = List.generate(_playlist.length, (i) => i)
-          .where((i) => i != _currentPlaylistIndex)
-          .toList();
-      if (availableIndices.isNotEmpty) {
-        final randomIndex = availableIndices[DateTime.now().millisecondsSinceEpoch % availableIndices.length];
-        _currentPlaylistIndex = randomIndex;
+    if (_isShuffleEnabled && _shuffledIndices.isNotEmpty) {
+      // Play next song in shuffled order
+      if (_shuffledPosition < _shuffledIndices.length - 1) {
+        _shuffledPosition++;
+        _currentPlaylistIndex = _shuffledIndices[_shuffledPosition];
+        await playSong(_playlist[_currentPlaylistIndex]);
+      } else if (_isRepeatEnabled) {
+        // Loop back to start of shuffled queue if repeat is enabled
+        _shuffledPosition = 0;
+        _currentPlaylistIndex = _shuffledIndices[_shuffledPosition];
         await playSong(_playlist[_currentPlaylistIndex]);
       }
     } else {
@@ -842,13 +887,28 @@ class MusicService extends ChangeNotifier {
   Future<void> playPrevious() async {
     if (_playlist.isEmpty) return;
     
-    if (_currentPlaylistIndex > 0) {
-      _currentPlaylistIndex--;
-      await playSong(_playlist[_currentPlaylistIndex]);
-    } else if (_isRepeatEnabled) {
-      // Loop to end if repeat is enabled
-      _currentPlaylistIndex = _playlist.length - 1;
-      await playSong(_playlist[_currentPlaylistIndex]);
+    if (_isShuffleEnabled && _shuffledIndices.isNotEmpty) {
+      // Play previous song in shuffled order
+      if (_shuffledPosition > 0) {
+        _shuffledPosition--;
+        _currentPlaylistIndex = _shuffledIndices[_shuffledPosition];
+        await playSong(_playlist[_currentPlaylistIndex]);
+      } else if (_isRepeatEnabled) {
+        // Loop to end of shuffled queue if repeat is enabled
+        _shuffledPosition = _shuffledIndices.length - 1;
+        _currentPlaylistIndex = _shuffledIndices[_shuffledPosition];
+        await playSong(_playlist[_currentPlaylistIndex]);
+      }
+    } else {
+      // Play previous song in order
+      if (_currentPlaylistIndex > 0) {
+        _currentPlaylistIndex--;
+        await playSong(_playlist[_currentPlaylistIndex]);
+      } else if (_isRepeatEnabled) {
+        // Loop to end if repeat is enabled
+        _currentPlaylistIndex = _playlist.length - 1;
+        await playSong(_playlist[_currentPlaylistIndex]);
+      }
     }
   }
 
@@ -866,7 +926,58 @@ class MusicService extends ChangeNotifier {
   // Toggle shuffle mode
   void toggleShuffle() {
     _isShuffleEnabled = !_isShuffleEnabled;
+    if (_isShuffleEnabled) {
+      _generateShuffledQueue();
+    } else {
+      _shuffledIndices.clear();
+      _shuffledPosition = 0;
+    }
     notifyListeners();
+  }
+
+  // Generate a shuffled queue based on current playlist
+  void _generateShuffledQueue() {
+    if (_playlist.isEmpty) return;
+    
+    // Create list of all indices except current song
+    _shuffledIndices = List.generate(_playlist.length, (i) => i)
+        .where((i) => i != _currentPlaylistIndex)
+        .toList();
+    
+    // Shuffle the list
+    _shuffledIndices.shuffle();
+    
+    // Add current song at the beginning
+    _shuffledIndices.insert(0, _currentPlaylistIndex);
+    
+    // Set position to current song
+    _shuffledPosition = 0;
+  }
+
+  // Get the shuffled queue as a list of songs
+  List<Song> get shuffledQueue {
+    if (!_isShuffleEnabled || _shuffledIndices.isEmpty) {
+      return _playlist;
+    }
+    return _shuffledIndices.map((index) => _playlist[index]).toList();
+  }
+
+  // Get upcoming songs in shuffle order
+  List<Song> get upcomingShuffledSongs {
+    if (!_isShuffleEnabled || _shuffledIndices.isEmpty) {
+      // Return regular upcoming songs
+      return _currentPlaylistIndex >= 0 && _currentPlaylistIndex < _playlist.length 
+          ? _playlist.sublist(_currentPlaylistIndex)
+          : _playlist;
+    }
+    
+    // Return shuffled upcoming songs
+    if (_shuffledPosition >= 0 && _shuffledPosition < _shuffledIndices.length) {
+      final upcomingIndices = _shuffledIndices.sublist(_shuffledPosition);
+      return upcomingIndices.map((index) => _playlist[index]).toList();
+    }
+    
+    return [];
   }
 
   // Toggle repeat mode
@@ -884,6 +995,12 @@ class MusicService extends ChangeNotifier {
   // Set shuffle mode
   void setShuffle(bool enabled) {
     _isShuffleEnabled = enabled;
+    if (_isShuffleEnabled) {
+      _generateShuffledQueue();
+    } else {
+      _shuffledIndices.clear();
+      _shuffledPosition = 0;
+    }
     notifyListeners();
   }
 

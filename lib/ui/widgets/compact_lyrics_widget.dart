@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 import '../../core/services/advanced_lyrics_sync_service.dart';
 import '../../core/services/music_service.dart';
 import '../../core/services/beat_visualizer_service.dart';
@@ -23,7 +24,8 @@ class CompactLyricsWidget extends StatefulWidget {
   State<CompactLyricsWidget> createState() => _CompactLyricsWidgetState();
 }
 
-class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
+class _CompactLyricsWidgetState extends State<CompactLyricsWidget> 
+    with TickerProviderStateMixin {
   Timer? _updateTimer;
   String _currentLyrics = '';
   bool _hasLyrics = false;
@@ -35,16 +37,43 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
   
   // Beat visualizer
   late BeatVisualizerService _beatVisualizer;
+  
+  // RGB Breathing animation for when beat effects are disabled
+  late AnimationController _breathingController;
+  late Animation<Color?> _rgbAnimation;
 
   @override
   void initState() {
     super.initState();
     _beatVisualizer = BeatVisualizerService();
     _initializeDelayNotifier();
+    _initializeBreathingAnimation();
     _startLyricsMonitoring();
   }
 
-  void _initializeDelayNotifier() async {
+  void _initializeBreathingAnimation() {
+    _breathingController = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    );
+    
+    _rgbAnimation = TweenSequence<Color?>([
+      TweenSequenceItem(
+        tween: ColorTween(begin: Colors.red, end: Colors.green),
+        weight: 1.0,
+      ),
+      TweenSequenceItem(
+        tween: ColorTween(begin: Colors.green, end: Colors.blue),
+        weight: 1.0,
+      ),
+      TweenSequenceItem(
+        tween: ColorTween(begin: Colors.blue, end: Colors.red),
+        weight: 1.0,
+      ),
+    ]).animate(_breathingController);
+
+    _breathingController.repeat();
+  }  void _initializeDelayNotifier() async {
     final lyricsService = Provider.of<AdvancedLyricsSyncService>(context, listen: false);
     final currentDelay = lyricsService.getDelay();
     _delayNotifier = ValueNotifier<double>(currentDelay);
@@ -55,6 +84,7 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
     _updateTimer?.cancel();
     _beatVisualizer.stopVisualization();
     _delayNotifier.dispose();
+    _breathingController.dispose();
     super.dispose();
   }
 
@@ -239,6 +269,14 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
           height: height,
           letterSpacing: letterSpacing,
         );
+      case 'Merriweather':
+        return GoogleFonts.merriweather(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+          letterSpacing: letterSpacing,
+        );
       default:
         return GoogleFonts.medievalSharp(
           color: color,
@@ -247,6 +285,67 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
           height: height,
           letterSpacing: letterSpacing,
         );
+    }
+  }
+
+  /// Apply either beat glow or RGB breathing effect based on beat visualizer state and settings
+  BoxDecoration _getGlowDecoration(BoxDecoration baseDecoration) {
+    final settingsService = Provider.of<SettingsService>(context, listen: false);
+    
+    if (_beatVisualizer.isEnabled) {
+      // Use beat-synchronized glow
+      return _beatVisualizer.applyBeatGlow(baseDecoration);
+    } else if (settingsService.rgbEffectsEnabled) {
+      // Use RGB breathing effect
+      return baseDecoration.copyWith(
+        boxShadow: [
+          ...?baseDecoration.boxShadow,
+          BoxShadow(
+            color: _rgbAnimation.value?.withValues(alpha: 0.8) ?? Colors.cyan.withValues(alpha: 0.5),
+            blurRadius: 20.0,
+            spreadRadius: 5.0,
+            offset: Offset.zero,
+          ),
+          BoxShadow(
+            color: _rgbAnimation.value?.withValues(alpha: 0.5) ?? Colors.cyan.withValues(alpha: 0.3),
+            blurRadius: 35.0,
+            spreadRadius: 8.0,
+            offset: Offset.zero,
+          ),
+        ],
+      );
+    } else {
+      // No effects
+      return baseDecoration;
+    }
+  }
+
+  /// Apply either beat effects or RGB breathing text effects based on beat visualizer state and settings
+  TextStyle _getTextEffects(TextStyle baseStyle) {
+    final settingsService = Provider.of<SettingsService>(context, listen: false);
+    
+    if (_beatVisualizer.isEnabled) {
+      // Use beat-synchronized effects
+      return _beatVisualizer.applyBeatEffects(baseStyle);
+    } else if (settingsService.rgbEffectsEnabled) {
+      // Use RGB breathing effect
+      return baseStyle.copyWith(
+        shadows: [
+          Shadow(
+            color: _rgbAnimation.value?.withValues(alpha: 1.0) ?? Colors.cyan.withValues(alpha: 0.7),
+            blurRadius: 12.0,
+            offset: Offset.zero,
+          ),
+          Shadow(
+            color: _rgbAnimation.value?.withValues(alpha: 0.6) ?? Colors.cyan.withValues(alpha: 0.4),
+            blurRadius: 20.0,
+            offset: Offset.zero,
+          ),
+        ],
+      );
+    } else {
+      // No effects
+      return baseStyle;
     }
   }
 
@@ -455,6 +554,33 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
                         },
                       ),
                     ),
+                    // RGB effects toggle
+                    PopupMenuItem<String>(
+                      value: 'rgb_toggle',
+                      child: Consumer<SettingsService>(
+                        builder: (context, settingsService, child) {
+                          return Row(
+                            children: [
+                              Icon(
+                                settingsService.rgbEffectsEnabled ? Icons.color_lens : Icons.color_lens_outlined,
+                                size: 18,
+                                color: settingsService.rgbEffectsEnabled 
+                                  ? AppTheme.accentColor
+                                  : AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                settingsService.rgbEffectsEnabled ? 'Disable RGB Effects' : 'Enable RGB Effects',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
                     // Reload lyrics
                     PopupMenuItem<String>(
                       value: 'reload',
@@ -505,7 +631,8 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
                                   'MedievalSharp',
                                   'Orbitron',
                                   'Dancing Script',
-                                  'Cinzel'
+                                  'Cinzel',
+                                  'Merriweather'
                                 ].map<DropdownMenuItem<String>>((String value) {
                                   return DropdownMenuItem<String>(
                                     value: value,
@@ -610,6 +737,10 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
                       case 'beat_toggle':
                         _beatVisualizer.toggleVisualization();
                         break;
+                      case 'rgb_toggle':
+                        Provider.of<SettingsService>(context, listen: false)
+                            .setRgbEffectsEnabled(!Provider.of<SettingsService>(context, listen: false).rgbEffectsEnabled);
+                        break;
                       case 'reload':
                         _reloadLyrics();
                         break;
@@ -685,39 +816,31 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
     } else if (_currentLyrics.isEmpty) {
       // Lyrics are available but haven't started yet (instrumental intro)
       return AnimatedBuilder(
-        animation: _beatVisualizer,
+        animation: Listenable.merge([_beatVisualizer, _breathingController]),
         builder: (context, child) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  decoration: _beatVisualizer.applyBeatGlow(
+                  decoration: _getGlowDecoration(
                     BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white.withValues(alpha: 0.1),
                     ),
                   ),
                   padding: const EdgeInsets.all(12),
-                  child: Icon(
-                    Icons.music_note_rounded,
-                    color: Colors.white60.withValues(alpha: _beatVisualizer.flickerIntensity),
-                    size: 24,
-                    shadows: [
-                      Shadow(
-                        color: _beatVisualizer.glowColor.withValues(alpha: _beatVisualizer.flickerIntensity * 0.8),
-                        blurRadius: 8.0 * _beatVisualizer.flickerIntensity,
-                        offset: Offset.zero,
-                      ),
-                      Shadow(
-                        color: _beatVisualizer.glowColor.withValues(alpha: _beatVisualizer.flickerIntensity * 0.5),
-                        blurRadius: 16.0 * _beatVisualizer.flickerIntensity,
-                        offset: Offset.zero,
-                      ),
-                    ],
+                  child: SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Lottie.asset(
+                      'assets/animations/music_play.json',
+                      fit: BoxFit.contain,
+                      repeat: true,
+                    ),
                   ),
                 ),
-                // Removed "[Instrumentals]" text to show only the music symbol
+                // Animated music symbol for instrumentals (using splash screen animation)
               ],
             ),
           );
@@ -726,7 +849,7 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
     }
 
     return AnimatedBuilder(
-      animation: _beatVisualizer,
+      animation: Listenable.merge([_beatVisualizer, _breathingController]),
       builder: (context, child) {
         return Center(
           child: Container(
@@ -738,7 +861,7 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
                   textAlign: TextAlign.center,
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
-                  style: _beatVisualizer.applyBeatEffects(
+                  style: _getTextEffects(
                     _getLyricsFontStyle(
                       settingsService.lyricsFont,
                       color: AppTheme.primaryColor,

@@ -11,6 +11,7 @@ class SettingsService extends ChangeNotifier {
   static const String _lyricsEnabledKey = 'lyrics_enabled';
   static const String _lyricsFontKey = 'lyrics_font';
   static const String _lyricsFontSizeKey = 'lyrics_font_size';
+  static const String _rgbEffectsEnabledKey = 'rgb_effects_enabled';
   static const String _crossfadeDurationKey = 'crossfade_duration';
   static const String _audioQualityKey = 'audio_quality';
   static const String _themeModeKey = 'theme_mode';
@@ -25,6 +26,7 @@ class SettingsService extends ChangeNotifier {
   bool _lyricsEnabled = true;
   String _lyricsFont = 'MedievalSharp';
   double _lyricsFontSize = 24.0;
+  bool _rgbEffectsEnabled = true;
   double _crossfadeDuration = 3.0;
   String _audioQuality = 'High';
   String _themeMode = 'Dark';
@@ -39,6 +41,7 @@ class SettingsService extends ChangeNotifier {
   bool get lyricsEnabled => _lyricsEnabled;
   String get lyricsFont => _lyricsFont;
   double get lyricsFontSize => _lyricsFontSize;
+  bool get rgbEffectsEnabled => _rgbEffectsEnabled;
   double get crossfadeDuration => _crossfadeDuration;
   String get audioQuality => _audioQuality;
   String get themeMode => _themeMode;
@@ -64,6 +67,7 @@ class SettingsService extends ChangeNotifier {
     _lyricsEnabled = _prefs!.getBool(_lyricsEnabledKey) ?? true;
     _lyricsFont = _prefs!.getString(_lyricsFontKey) ?? 'MedievalSharp';
     _lyricsFontSize = _prefs!.getDouble(_lyricsFontSizeKey) ?? 24.0;
+    _rgbEffectsEnabled = _prefs!.getBool(_rgbEffectsEnabledKey) ?? true;
     _crossfadeDuration = _prefs!.getDouble(_crossfadeDurationKey) ?? 3.0;
     _audioQuality = _prefs!.getString(_audioQualityKey) ?? 'High';
     _themeMode = _prefs!.getString(_themeModeKey) ?? 'Dark';
@@ -134,6 +138,13 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Set RGB effects enabled setting
+  Future<void> setRgbEffectsEnabled(bool enabled) async {
+    _rgbEffectsEnabled = enabled;
+    await _prefs?.setBool(_rgbEffectsEnabledKey, enabled);
+    notifyListeners();
+  }
+
   /// Set crossfade duration
   Future<void> setCrossfadeDuration(double duration) async {
     _crossfadeDuration = duration;
@@ -189,6 +200,7 @@ class SettingsService extends ChangeNotifier {
       _lyricsEnabledKey: _lyricsEnabled,
       _lyricsFontKey: _lyricsFont,
       _lyricsFontSizeKey: _lyricsFontSize,
+      _rgbEffectsEnabledKey: _rgbEffectsEnabled,
       _crossfadeDurationKey: _crossfadeDuration,
       _audioQualityKey: _audioQuality,
       _themeModeKey: _themeMode,
