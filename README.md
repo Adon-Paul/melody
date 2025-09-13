@@ -2,7 +2,7 @@
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg)](https://flutter.dev/)
 [![Firebase](https://img.shields.io/badge/Firebase-Ready-orange.svg)](https://firebase.google.com/)
-[![Platform](https://img.shields.io/badge/Platform-Androi### Phase 2: Core Features ✅
+ Phase 2: Core Features ✅
 - [x] Complete music player UI with full-screen experience
 - [x] Advanced playlist management with auto-progression
 - [x] Background audio playbook with notification controls
