@@ -276,6 +276,54 @@ class MiniPlayer extends StatelessWidget {
             onLongPress: () {
               _showPlaybackSettings(context, musicService);
             },
+            onPanEnd: (details) {
+              // Handle swipe gestures on mini player
+              final velocity = details.velocity.pixelsPerSecond;
+              final verticalVelocity = velocity.dy;
+              final horizontalVelocity = velocity.dx;
+              
+              // Determine if this is primarily a vertical or horizontal swipe
+              if (verticalVelocity.abs() > horizontalVelocity.abs()) {
+                // Vertical swipe handling
+                if (verticalVelocity < -500) {
+                  // Swipe up detected - open full player
+                  Navigator.push(
+                    context,
+                    PageTransitions.circleMorph(const FullMusicPlayerPage()),
+                  );
+                } else if (verticalVelocity > 500) {
+                  // Swipe down detected - stop music and close player
+                  musicService.stop();
+                  GlassNotification.show(
+                    context,
+                    message: 'Music stopped',
+                    icon: Icons.stop_rounded,
+                    backgroundColor: AppTheme.surfaceColor.withValues(alpha: 0.2),
+                  );
+                }
+              } else {
+                // Horizontal swipe handling
+                if (horizontalVelocity > 500) {
+                  // Swipe right detected - play previous song
+                  musicService.playPrevious();
+                  GlassNotification.show(
+                    context,
+                    message: 'Previous song',
+                    icon: Icons.skip_previous_rounded,
+                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                  );
+                } else if (horizontalVelocity < -500) {
+                  // Swipe left detected - play next song
+                  musicService.playNext();
+                  GlassNotification.show(
+                    context,
+                    message: 'Next song',
+                    icon: Icons.skip_next_rounded,
+                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                  );
+                }
+              }
+            },
             child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: BackdropFilter(

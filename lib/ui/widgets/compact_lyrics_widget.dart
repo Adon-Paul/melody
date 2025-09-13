@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/services/advanced_lyrics_sync_service.dart';
 import '../../core/services/music_service.dart';
+import '../../core/services/beat_visualizer_service.dart';
+import '../../core/services/settings_service.dart';
 import '../../core/theme/app_theme.dart';
 
 /// Compact lyrics widget that displays up to 4 lines of current lyrics
@@ -29,10 +32,14 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
   
   // Delay adjustment state
   late ValueNotifier<double> _delayNotifier;
+  
+  // Beat visualizer
+  late BeatVisualizerService _beatVisualizer;
 
   @override
   void initState() {
     super.initState();
+    _beatVisualizer = BeatVisualizerService();
     _initializeDelayNotifier();
     _startLyricsMonitoring();
   }
@@ -46,6 +53,7 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
   @override
   void dispose() {
     _updateTimer?.cancel();
+    _beatVisualizer.stopVisualization();
     _delayNotifier.dispose();
     super.dispose();
   }
@@ -72,7 +80,43 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
         _currentLyrics = '';
         _lastRequestedSong = currentSongId;
       });
+      
+      // Start beat visualization with estimated BPM
+      final estimatedBPM = _beatVisualizer.estimateBPMFromSong(
+        title: currentSong!.title,
+        artist: currentSong.artist,
+        duration: currentSong.duration ?? const Duration(minutes: 3),
+      );
+      _beatVisualizer.startVisualization(bpm: estimatedBPM);
+      
+      lyricsService.loadLyrics(currentSong.artist, currentSong.title);
       return;
+    }
+    
+    // No song playing
+    if (currentSong == null) {
+      _beatVisualizer.stopVisualization();
+      setState(() {
+        _isLoading = false;
+        _hasLyrics = false;
+        _currentLyrics = '';
+        _lastRequestedSong = null;
+      });
+      return;
+    }
+    
+    // Update beat visualization based on playback state
+    if (musicService.isPlaying) {
+      if (!_beatVisualizer.isEnabled) {
+        final estimatedBPM = _beatVisualizer.estimateBPMFromSong(
+          title: currentSong.title,
+          artist: currentSong.artist,
+          duration: currentSong.duration ?? const Duration(minutes: 3),
+        );
+        _beatVisualizer.startVisualization(bpm: estimatedBPM);
+      }
+    } else {
+      _beatVisualizer.stopVisualization();
     }
     
     // Determine the actual state based on lyrics service
@@ -154,14 +198,73 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
     _delayNotifier.value = lyricsService.getDelay();
   }
 
+  /// Get Google Font based on settings
+  TextStyle _getLyricsFontStyle(String fontName, {
+    required Color color,
+    required double fontSize,
+    required FontWeight fontWeight,
+    required double height,
+    required double letterSpacing,
+  }) {
+    switch (fontName) {
+      case 'MedievalSharp':
+        return GoogleFonts.medievalSharp(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+          letterSpacing: letterSpacing,
+        );
+      case 'Orbitron':
+        return GoogleFonts.orbitron(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+          letterSpacing: letterSpacing,
+        );
+      case 'Dancing Script':
+        return GoogleFonts.dancingScript(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+          letterSpacing: letterSpacing,
+        );
+      case 'Cinzel':
+        return GoogleFonts.cinzel(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+          letterSpacing: letterSpacing,
+        );
+      default:
+        return GoogleFonts.medievalSharp(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+          letterSpacing: letterSpacing,
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary( // Isolate repaints to this widget only
+    return Consumer<SettingsService>(
+      builder: (context, settingsService, child) {
+        // Return empty container if lyrics are disabled
+        if (!settingsService.lyricsEnabled) {
+          return const SizedBox.shrink();
+        }
+        
+        return RepaintBoundary( // Isolate repaints to this widget only
       child: Container(
         constraints: const BoxConstraints(
-          maxWidth: 320,
-          minHeight: 80,
-          maxHeight: 120,
+          maxWidth: 400, // Increased from 320 to 400
+          minHeight: 90, // Increased from 80 to 90
+          maxHeight: 180, // Increased from 140 to 180 for more length
         ),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(12),
@@ -207,98 +310,311 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
                     ),
                   ),
                 ),
-                // Delay adjustment controls
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Delay display
-                    ValueListenableBuilder<double>(
-                      valueListenable: _delayNotifier,
-                      builder: (context, delay, child) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(6),
+                // Options button with dropdown menu
+                PopupMenuButton<String>(
+                  icon: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.accentColor.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.settings_rounded,
+                      size: 16,
+                      color: AppTheme.accentColor,
+                    ),
+                  ),
+                  color: AppTheme.cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: AppTheme.accentColor.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  offset: const Offset(0, 40),
+                  itemBuilder: (context) => [
+                    // Delay controls section
+                    PopupMenuItem<String>(
+                      enabled: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Sync Delay',
+                              style: TextStyle(
+                                color: AppTheme.accentColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                InkWell(
+                                  onTap: _decreaseDelay,
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.accentColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: AppTheme.accentColor.withValues(alpha: 0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.remove,
+                                      size: 14,
+                                      color: AppTheme.accentColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                ValueListenableBuilder<double>(
+                                  valueListenable: _delayNotifier,
+                                  builder: (context, delay, child) {
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.3),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '${delay.toInt()}ms',
+                                        style: TextStyle(
+                                          color: AppTheme.accentColor,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 12),
+                                InkWell(
+                                  onTap: _increaseDelay,
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.accentColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: AppTheme.accentColor.withValues(alpha: 0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.add,
+                                      size: 14,
+                                      color: AppTheme.accentColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    // Beat visualizer toggle
+                    PopupMenuItem<String>(
+                      value: 'beat_toggle',
+                      child: AnimatedBuilder(
+                        animation: _beatVisualizer,
+                        builder: (context, child) {
+                          return Row(
+                            children: [
+                              Icon(
+                                _beatVisualizer.isEnabled ? Icons.graphic_eq : Icons.graphic_eq_outlined,
+                                size: 18,
+                                color: _beatVisualizer.isEnabled 
+                                  ? AppTheme.accentColor
+                                  : AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                _beatVisualizer.isEnabled ? 'Disable Beat Effects' : 'Enable Beat Effects',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    // Reload lyrics
+                    PopupMenuItem<String>(
+                      value: 'reload',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.refresh_rounded,
+                            size: 18,
+                            color: AppTheme.textSecondary,
                           ),
-                          child: Text(
-                            '${delay.toInt()}ms',
+                          const SizedBox(width: 12),
+                          Text(
+                            'Reload Lyrics',
                             style: TextStyle(
-                              color: AppTheme.accentColor,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textPrimary,
+                              fontSize: 14,
                             ),
                           ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    // Decrease delay button
-                    InkWell(
-                      onTap: _decreaseDelay,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: AppTheme.accentColor.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.remove,
-                          size: 12,
-                          color: AppTheme.accentColor,
-                        ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    // Increase delay button
-                    InkWell(
-                      onTap: _increaseDelay,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: AppTheme.accentColor.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.add,
-                          size: 12,
-                          color: AppTheme.accentColor,
-                        ),
+                    const PopupMenuDivider(),
+                    // Font selection
+                    PopupMenuItem<String>(
+                      enabled: false,
+                      child: Consumer<SettingsService>(
+                        builder: (context, settingsService, child) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Lyrics Font',
+                                style: TextStyle(
+                                  color: AppTheme.accentColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              DropdownButton<String>(
+                                value: settingsService.lyricsFont,
+                                onChanged: (String? newValue) {
+                                  if (newValue != null) {
+                                    settingsService.setLyricsFont(newValue);
+                                  }
+                                },
+                                items: [
+                                  'MedievalSharp',
+                                  'Orbitron',
+                                  'Dancing Script',
+                                  'Cinzel'
+                                ].map<DropdownMenuItem<String>>((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(
+                                      value,
+                                      style: TextStyle(
+                                        color: AppTheme.textPrimary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                dropdownColor: AppTheme.cardColor,
+                                underline: Container(),
+                                isDense: true,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Font Size: ${settingsService.lyricsFontSize.toInt()}px',
+                                style: TextStyle(
+                                  color: AppTheme.accentColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 3,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                                  activeTrackColor: AppTheme.accentColor,
+                                  inactiveTrackColor: AppTheme.accentColor.withValues(alpha: 0.3),
+                                  thumbColor: AppTheme.accentColor,
+                                ),
+                                child: Slider(
+                                  value: settingsService.lyricsFontSize,
+                                  min: 16.0,
+                                  max: 32.0,
+                                  divisions: 8,
+                                  onChanged: (value) => settingsService.setLyricsFontSize(value),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Reload button
-                    InkWell(
-                      onTap: _reloadLyrics,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: AppTheme.accentColor.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.refresh_rounded,
-                          size: 16,
-                          color: AppTheme.accentColor,
+                    const PopupMenuDivider(),
+                    // Lyrics provider info
+                    PopupMenuItem<String>(
+                      enabled: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Lyrics Provider',
+                              style: TextStyle(
+                                color: AppTheme.accentColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.public,
+                                  size: 14,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'LRCLIB.net - Community Lyrics Database',
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 11,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Synchronized LRC format with word-perfect timing',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ],
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'beat_toggle':
+                        _beatVisualizer.toggleVisualization();
+                        break;
+                      case 'reload':
+                        _reloadLyrics();
+                        break;
+                    }
+                  },
                 ),
               ],
             ),
@@ -310,6 +626,8 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
           ],
         ),
       ),
+    );
+      },
     );
   }
 
@@ -366,47 +684,76 @@ class _CompactLyricsWidgetState extends State<CompactLyricsWidget> {
       );
     } else if (_currentLyrics.isEmpty) {
       // Lyrics are available but haven't started yet (instrumental intro)
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.music_note_rounded,
-              color: Colors.white60,
-              size: 24,
+      return AnimatedBuilder(
+        animation: _beatVisualizer,
+        builder: (context, child) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  decoration: _beatVisualizer.applyBeatGlow(
+                    BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Icon(
+                    Icons.music_note_rounded,
+                    color: Colors.white60.withValues(alpha: _beatVisualizer.flickerIntensity),
+                    size: 24,
+                    shadows: [
+                      Shadow(
+                        color: _beatVisualizer.glowColor.withValues(alpha: _beatVisualizer.flickerIntensity * 0.8),
+                        blurRadius: 8.0 * _beatVisualizer.flickerIntensity,
+                        offset: Offset.zero,
+                      ),
+                      Shadow(
+                        color: _beatVisualizer.glowColor.withValues(alpha: _beatVisualizer.flickerIntensity * 0.5),
+                        blurRadius: 16.0 * _beatVisualizer.flickerIntensity,
+                        offset: Offset.zero,
+                      ),
+                    ],
+                  ),
+                ),
+                // Removed "[Instrumentals]" text to show only the music symbol
+              ],
             ),
-            SizedBox(height: 8),
-            Text(
-              '[Instrumentals]',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       );
     }
 
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 280),
-        child: Text(
-          _currentLyrics,
-          textAlign: TextAlign.center,
-          maxLines: 4,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppTheme.primaryColor,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            height: 1.4,
-            letterSpacing: 0.2,
+    return AnimatedBuilder(
+      animation: _beatVisualizer,
+      builder: (context, child) {
+        return Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 360), // Increased from 280 to 360
+            child: Consumer<SettingsService>(
+              builder: (context, settingsService, child) {
+                return Text(
+                  _currentLyrics,
+                  textAlign: TextAlign.center,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: _beatVisualizer.applyBeatEffects(
+                    _getLyricsFontStyle(
+                      settingsService.lyricsFont,
+                      color: AppTheme.primaryColor,
+                      fontSize: settingsService.lyricsFontSize,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -8,10 +8,10 @@ import 'dart:typed_data';
 import 'dart:ui';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/modern_button.dart';
-import '../core/widgets/animated_background.dart';
 import '../core/widgets/mini_player.dart';
 import '../core/widgets/glass_notification.dart';
 import '../core/services/music_service.dart';
+import '../core/services/music_player_navigation.dart';
 
 class MusicFileMetadata {
   final String path;
@@ -611,6 +611,11 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
     // Play from playlist starting at the selected song
     await musicService.playFromPlaylist(playlist, selectedIndex);
     
+    // Auto-navigate to full music player for user-initiated plays
+    if (mounted) {
+      MusicPlayerNavigation.showFullPlayerOnPlay(context);
+    }
+    
     if (mounted) {
       GlassNotification.show(
         context,
@@ -766,7 +771,6 @@ class _DeviceMusicPageState extends State<DeviceMusicPage> {
         backgroundColor: AppTheme.backgroundColor,
         body: Stack(
         children: [
-          const AnimatedBackground(),
           SafeArea(
             child: Column(
               children: [

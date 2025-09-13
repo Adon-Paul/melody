@@ -24,7 +24,7 @@ class AdvancedLyricsSyncService extends ChangeNotifier {
   // Settings
   bool _isEnabled = true;
   bool _autoScroll = true;
-  double _fontSize = 16.0;
+  double _fontSize = 20.0;
   double _syncOffset = 0.0; // Offset in milliseconds for fine-tuning
 
   // Getters
@@ -406,7 +406,7 @@ class AdvancedLyricsSyncService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _isEnabled = prefs.getBool('advanced_lyrics_enabled') ?? true;
       _autoScroll = prefs.getBool('advanced_lyrics_auto_scroll') ?? true;
-      _fontSize = prefs.getDouble('advanced_lyrics_font_size') ?? 16.0;
+      _fontSize = prefs.getDouble('advanced_lyrics_font_size') ?? 20.0;
       _syncOffset = prefs.getDouble('advanced_lyrics_sync_offset') ?? 0.0;
     } catch (e) {
       debugPrint('Settings load error: $e');

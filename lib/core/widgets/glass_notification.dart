@@ -69,7 +69,7 @@ class _GlassNotificationWidgetState extends State<_GlassNotificationWidget>
     ));
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, -1),
+      begin: const Offset(0, 1),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _controller,
@@ -100,7 +100,7 @@ class _GlassNotificationWidgetState extends State<_GlassNotificationWidget>
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: MediaQuery.of(context).padding.top + 20,
+      bottom: MediaQuery.of(context).padding.bottom + 100, // Above mini player
       left: 20,
       right: 20,
       child: SlideTransition(
@@ -116,20 +116,20 @@ class _GlassNotificationWidgetState extends State<_GlassNotificationWidget>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                    filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: (widget.backgroundColor ?? AppTheme.surfaceColor)
-                            .withValues(alpha: 0.8),
+                        color: (widget.backgroundColor ?? Colors.black)
+                            .withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                          color: Colors.white.withValues(alpha: 0.05),
                           width: 1,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 12,
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 20,
                             offset: const Offset(0, 4),
                           ),
                         ],

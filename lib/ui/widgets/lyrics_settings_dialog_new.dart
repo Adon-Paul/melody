@@ -117,7 +117,7 @@ class _LyricsSettingsDialogState extends State<LyricsSettingsDialog> {
                           child: Switch(
                             value: lyricsService.autoScroll,
                             onChanged: (value) => lyricsService.setAutoScroll(value),
-                            activeColor: AppTheme.accentColor,
+                            activeThumbColor: AppTheme.accentColor,
                           ),
                         ),
 

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/animated_background.dart';
 import '../../core/widgets/modern_button.dart';
 import '../../core/widgets/mini_player.dart';
-import '../../core/services/auth_service.dart';
 import '../../core/services/music_service.dart';
 import '../../core/services/favorites_service.dart';
 import '../../core/transitions/page_transitions.dart';
 import '../device_music_page.dart';
 import '../favorites_page.dart';
+import '../settings_page.dart';
 import '../spotify_login_page.dart';
 import '../../core/demo/transition_demo_page.dart';
-import '../../ui/auth/login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,19 +27,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // No need to call loadSongs() since MusicService auto-starts background scanning
     // Just let the background scan populate songs naturally
-  }
-
-  Future<void> _handleSignOut() async {
-    final authService = context.read<AuthService>();
-    await authService.signOut();
-    
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        PageTransitions.circleMorph(const LoginScreen()),
-        (route) => false,
-      );
-    }
   }
 
   @override
@@ -75,24 +62,38 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-        title: Text(
-          'MELODY',
-          style: AppTheme.headlineMedium.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppTheme.primaryColor,
+        extendBodyBehindAppBar: true,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: ClipRRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: AppBar(
+                title: Text(
+                  'MELODY',
+                  style: AppTheme.headlineMedium.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                actions: [
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        PageTransitions.circleMorph(const SettingsPage()),
+                      );
+                    },
+                    icon: const Icon(Icons.settings),
+                    tooltip: 'Settings',
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        backgroundColor: AppTheme.backgroundColor,
-        elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: _handleSignOut,
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign Out',
-          ),
-        ],
-      ),
       body: Stack(
         children: [
           const AnimatedBackground(),

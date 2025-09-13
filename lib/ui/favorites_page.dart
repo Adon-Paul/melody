@@ -4,7 +4,7 @@ import 'dart:ui';
 import '../core/theme/app_theme.dart';
 import '../core/services/favorites_service.dart';
 import '../core/services/music_service.dart';
-import '../core/widgets/animated_background.dart';
+import '../core/services/music_player_navigation.dart';
 import '../core/widgets/mini_player.dart';
 import '../core/widgets/glass_notification.dart';
 
@@ -213,7 +213,26 @@ class FavoritesPage extends StatelessWidget {
 
   void _playFavoriteSong(BuildContext context, Song song) async {
     final musicService = context.read<MusicService>();
-    await musicService.playSong(song);
+    final favoritesService = context.read<FavoritesService>();
+    
+    // Get all favorite songs as the playlist
+    final favoritesSongs = favoritesService.favorites;
+    
+    // Find the index of the selected song in the favorites list
+    final songIndex = favoritesSongs.indexWhere((favSong) => favSong.id == song.id);
+    
+    if (songIndex != -1) {
+      // Play from the favorites playlist starting at the selected song
+      await musicService.playFromPlaylist(favoritesSongs, songIndex, userInitiated: true);
+    } else {
+      // Fallback to single song play if not found in favorites
+      await musicService.playUserSelectedSong(song);
+    }
+    
+    // Auto-navigate to full music player for user-initiated plays
+    if (context.mounted) {
+      MusicPlayerNavigation.showFullPlayerOnPlay(context);
+    }
     
     if (context.mounted) {
       GlassNotification.show(
@@ -251,7 +270,6 @@ class FavoritesPage extends StatelessWidget {
         backgroundColor: AppTheme.backgroundColor,
         body: Stack(
         children: [
-          const AnimatedBackground(),
           SafeArea(
             child: Column(
               children: [

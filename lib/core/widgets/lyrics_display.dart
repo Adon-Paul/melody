@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/lyrics_service.dart';
+import '../services/beat_visualizer_service.dart';
 
 class LyricsDisplay extends StatefulWidget {
   final double currentTime;
@@ -25,6 +27,7 @@ class _LyricsDisplayState extends State<LyricsDisplay>
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late BeatVisualizerService _beatVisualizer;
   
   int _lastScrolledLineIndex = -1; // Track the last line we scrolled to
   double _lastScrollTime = -1; // Track when we last scrolled
@@ -33,6 +36,7 @@ class _LyricsDisplayState extends State<LyricsDisplay>
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    _beatVisualizer = BeatVisualizerService();
     
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -572,18 +576,25 @@ class _LyricsDisplayState extends State<LyricsDisplay>
           const SizedBox(width: 12),
         ],
         Expanded(
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 300),
-            style: TextStyle(
-              color: textColor,
-              fontSize: lyricsService.fontSize,
-              fontWeight: isCurrentLine ? FontWeight.w600 : FontWeight.normal,
-              height: 1.4,
-            ),
-            child: Text(
-              line.text,
-              textAlign: TextAlign.center,
-            ),
+          child: AnimatedBuilder(
+            animation: _beatVisualizer,
+            builder: (context, child) {
+              return AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 300),
+                style: _beatVisualizer.applyBeatEffects(
+                  GoogleFonts.medievalSharp(
+                    color: textColor,
+                    fontSize: lyricsService.fontSize,
+                    fontWeight: isCurrentLine ? FontWeight.w600 : FontWeight.normal,
+                    height: 1.4,
+                  ),
+                ),
+                child: Text(
+                  line.text,
+                  textAlign: TextAlign.center,
+                ),
+              );
+            },
           ),
         ),
         if (line.isChorus && lyricsService.highlightChorus)

@@ -11,6 +11,7 @@ import 'core/services/favorites_service.dart';
 import 'core/services/advanced_lyrics_sync_service.dart';
 import 'core/services/spotify_auth_service.dart';
 import 'core/services/spotify_service.dart';
+import 'core/services/settings_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +45,13 @@ class MelodyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MusicService()),
         ChangeNotifierProvider(create: (_) => FavoritesService()),
         ChangeNotifierProvider(create: (_) => AdvancedLyricsSyncService()),
+        ChangeNotifierProvider(
+          create: (_) {
+            final service = SettingsService();
+            service.initialize(); // Initialize settings
+            return service;
+          },
+        ),
         ChangeNotifierProvider(
           create: (_) {
             final service = SpotifyAuthService();

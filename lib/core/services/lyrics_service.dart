@@ -509,7 +509,7 @@ class LyricsService extends ChangeNotifier {
   
   // Settings
   bool _autoScroll = true;
-  double _fontSize = 16.0;
+  double _fontSize = 20.0;
   bool _showTimestamps = false;
   bool _highlightChorus = true;
 
@@ -686,7 +686,7 @@ class LyricsService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _isEnabled = prefs.getBool('lyrics_enabled') ?? true;
       _autoScroll = prefs.getBool('lyrics_auto_scroll') ?? true;
-      _fontSize = prefs.getDouble('lyrics_font_size') ?? 16.0;
+      _fontSize = prefs.getDouble('lyrics_font_size') ?? 20.0;
       _showTimestamps = prefs.getBool('lyrics_show_timestamps') ?? false;
       _highlightChorus = prefs.getBool('lyrics_highlight_chorus') ?? true;
     } catch (e) {

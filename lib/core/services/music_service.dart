@@ -170,6 +170,7 @@ class MusicService extends ChangeNotifier {
   bool _isRepeatEnabled = false;
   bool _autoPlayNext = true; // Auto-play next song when current ends
   int _currentPlaylistIndex = 0;
+  bool _isUserInitiatedPlay = false; // Track if current play was user-initiated
   
   // Caching properties
   bool _isCacheLoaded = false;
@@ -197,6 +198,7 @@ class MusicService extends ChangeNotifier {
   bool get isRepeatEnabled => _isRepeatEnabled;
   bool get autoPlayNext => _autoPlayNext;
   int get currentPlaylistIndex => _currentPlaylistIndex;
+  bool get isUserInitiatedPlay => _isUserInitiatedPlay;
   double get progress => _duration.inMilliseconds > 0
       ? _position.inMilliseconds / _duration.inMilliseconds
       : 0.0;
@@ -724,9 +726,11 @@ class MusicService extends ChangeNotifier {
   }
 
   // Play a specific song
-  Future<void> playSong(Song song) async {
+  Future<void> playSong(Song song, {bool userInitiated = false}) async {
     try {
       _setError(null);
+      _isUserInitiatedPlay = userInitiated;
+      
       // Use the existing song data instead of reloading to preserve album art
       _currentSong = song;
       
@@ -757,13 +761,18 @@ class MusicService extends ChangeNotifier {
     }
   }
 
-  // Set playlist and play from specific index
-  Future<void> playFromPlaylist(List<Song> playlist, int index) async {
+  // Play a song initiated by user action (will trigger full-screen player)
+  Future<void> playUserSelectedSong(Song song) async {
+    await playSong(song, userInitiated: true);
+  }
+
+  // Set playlist and play from specific index (user-initiated)
+  Future<void> playFromPlaylist(List<Song> playlist, int index, {bool userInitiated = true}) async {
     if (playlist.isEmpty || index < 0 || index >= playlist.length) return;
     
     _playlist = List.from(playlist);
     _currentPlaylistIndex = index;
-    await playSong(playlist[index]);
+    await playSong(playlist[index], userInitiated: userInitiated);
   }
 
   // Play/pause current song
