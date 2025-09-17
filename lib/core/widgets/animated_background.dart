@@ -89,8 +89,8 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
                     end: Alignment.bottomRight,
                     colors: [
                       AppTheme.backgroundColor,
-                      AppTheme.primaryColor.withOpacity(0.1),
-                      AppTheme.accentColor.withOpacity(0.05),
+                      AppTheme.primaryColor.withValues(alpha: 0.1),
+                      AppTheme.accentColor.withValues(alpha: 0.05),
                       AppTheme.backgroundColor,
                     ],
                     stops: [
@@ -164,7 +164,7 @@ class ParticlePainter extends CustomPainter {
       final x = particle.x * size.width;
       final y = particle.y * size.height;
       
-      paint.color = AppTheme.primaryColor.withOpacity(particle.opacity);
+      paint.color = AppTheme.primaryColor.withValues(alpha: particle.opacity);
       canvas.drawCircle(
         Offset(x, y),
         particle.size,
@@ -172,7 +172,7 @@ class ParticlePainter extends CustomPainter {
       );
       
       // Add subtle glow effect
-      paint.color = AppTheme.primaryColor.withOpacity(particle.opacity * 0.3);
+      paint.color = AppTheme.primaryColor.withValues(alpha: particle.opacity * 0.3);
       canvas.drawCircle(
         Offset(x, y),
         particle.size * 2,
@@ -241,15 +241,15 @@ class _GlowingOrbState extends State<GlowingOrb>
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: widget.color.withOpacity(_glowAnimation.value * 0.6),
+                color: widget.color.withValues(alpha: _glowAnimation.value * 0.6),
                 blurRadius: 20 * _glowAnimation.value,
                 spreadRadius: 5 * _glowAnimation.value,
               ),
             ],
             gradient: RadialGradient(
               colors: [
-                widget.color.withOpacity(_glowAnimation.value),
-                widget.color.withOpacity(_glowAnimation.value * 0.3),
+                widget.color.withValues(alpha: _glowAnimation.value),
+                widget.color.withValues(alpha: _glowAnimation.value * 0.3),
                 Colors.transparent,
               ],
               stops: const [0.0, 0.7, 1.0],
@@ -323,7 +323,7 @@ class WavePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.fill
-      ..color = AppTheme.primaryColor.withOpacity(0.1);
+      ..color = AppTheme.primaryColor.withValues(alpha: 0.1);
 
     final path = Path();
     final waveHeight = 30.0;
@@ -344,7 +344,7 @@ class WavePainter extends CustomPainter {
     canvas.drawPath(path, paint);
     
     // Second wave
-    paint.color = AppTheme.accentColor.withOpacity(0.05);
+    paint.color = AppTheme.accentColor.withValues(alpha: 0.05);
     final path2 = Path();
     path2.moveTo(0, size.height * 0.9);
     

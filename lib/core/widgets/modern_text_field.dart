@@ -120,13 +120,13 @@ class _ModernTextFieldState extends State<ModernTextField>
                   border: Border.all(
                     color: _isFocused 
                         ? AppTheme.primaryColor 
-                        : Colors.white.withOpacity(0.1),
+                        : Colors.white.withValues(alpha: 0.1),
                     width: _isFocused ? 2 : 1,
                   ),
                   boxShadow: _isFocused
                       ? [
                           BoxShadow(
-                            color: AppTheme.primaryColor.withOpacity(0.3),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.3),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -221,7 +221,7 @@ class SearchTextField extends StatelessWidget {
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
         border: Border.all(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
         ),
       ),
       child: TextField(

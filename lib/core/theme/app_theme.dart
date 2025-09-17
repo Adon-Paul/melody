@@ -48,8 +48,8 @@ class AppTheme {
   );
 
   // Glass Effect Colors - Darker for ultra dark mode
-  static Color get glassBackground => Colors.white.withOpacity(0.03);  // Much darker glass
-  static Color get glassBorder => Colors.white.withOpacity(0.08);      // Darker border
+  static Color get glassBackground => Colors.white.withValues(alpha: 0.03);  // Much darker glass
+  static Color get glassBorder => Colors.white.withValues(alpha: 0.08);      // Darker border
 
   // Text Styles with Google Fonts
   static TextStyle get displayLarge => GoogleFonts.inter(
@@ -176,7 +176,7 @@ class AppTheme {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),

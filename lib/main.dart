@@ -7,16 +7,22 @@ import 'firebase_options.dart';
 import 'ui/splash/splash_screen.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/music_service.dart';
+import 'core/services/favorites_service.dart';
+import 'core/services/advanced_lyrics_sync_service.dart';
+import 'core/services/spotify_auth_service.dart';
+import 'core/services/spotify_service.dart';
+import 'core/services/settings_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
+  // Initialize Firebase for authentication and backend services
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
   // Set system UI mode for immersive experience
+  // Test PR: Added comment for better code documentation
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   
   // Set preferred orientations
@@ -37,9 +43,30 @@ class MelodyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => MusicService()),
+        ChangeNotifierProvider(create: (_) => FavoritesService()),
+        ChangeNotifierProvider(create: (_) => AdvancedLyricsSyncService()),
+        ChangeNotifierProvider(
+          create: (_) {
+            final service = SettingsService();
+            service.initialize(); // Initialize settings
+            return service;
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (_) {
+            final service = SpotifyAuthService();
+            service.initialize(); // Initialize deep link listening
+            return service;
+          },
+        ),
+        ChangeNotifierProxyProvider<SpotifyAuthService, SpotifyService>(
+          create: (context) => SpotifyService(context.read<SpotifyAuthService>()),
+          update: (context, spotifyAuth, previous) => 
+              SpotifyService(spotifyAuth),
+        ),
       ],
       child: MaterialApp(
-        title: 'Melody - Music Reimagined',
+        title: 'Melody - Music Reimagined',               
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         home: const SplashScreen(),

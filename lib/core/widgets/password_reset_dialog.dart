@@ -68,27 +68,32 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 400),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.9,
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        width: double.infinity,
         padding: const EdgeInsets.all(24.0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           color: AppTheme.surfaceColor,
           border: Border.all(
-            color: AppTheme.primaryColor.withOpacity(0.2),
+            color: AppTheme.primaryColor.withValues(alpha: 0.2),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryColor.withOpacity(0.1),
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
           ],
         ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
             children: [
               // Header
               Row(
@@ -166,10 +171,10 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
                       variant: ButtonVariant.outlined,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ModernButton(
-                      text: 'Send Reset Link',
+                      text: 'Send Link',
                       onPressed: _isLoading ? null : _handlePasswordReset,
                       isLoading: _isLoading,
                     ),
@@ -182,10 +187,10 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppTheme.primaryColor.withOpacity(0.2),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Row(
@@ -209,6 +214,7 @@ class _PasswordResetDialogState extends State<PasswordResetDialog> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

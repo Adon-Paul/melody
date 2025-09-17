@@ -39,7 +39,12 @@ class ModernToast {
     IconData? icon,
     VoidCallback? onTap,
   }) {
-    _currentToast?.remove();
+    // Safely remove current toast if it exists
+    try {
+      _currentToast?.remove();
+    } catch (e) {
+      // Overlay might have been disposed, ignore error
+    }
     _currentToast = null;
 
     final overlay = Overlay.maybeOf(context);
@@ -49,7 +54,7 @@ class ModernToast {
     
     final entry = OverlayEntry(
       builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 20,
+        bottom: MediaQuery.of(context).padding.bottom + 20,
         left: 16,
         right: 16,
         child: Material(
@@ -73,8 +78,13 @@ class ModernToast {
     _currentToast = entry;
 
     Timer(duration, () {
-      entry.remove();
-      if (_currentToast == entry) {
+      try {
+        if (_currentToast == entry) {
+          entry.remove();
+          _currentToast = null;
+        }
+      } catch (e) {
+        // Overlay might have been disposed, just clear our reference
         _currentToast = null;
       }
     });
@@ -149,7 +159,11 @@ class ModernToast {
   }
 
   static void hide() {
-    _currentToast?.remove();
+    try {
+      _currentToast?.remove();
+    } catch (e) {
+      // Overlay might have been disposed, ignore error
+    }
     _currentToast = null;
   }
 
@@ -157,28 +171,28 @@ class ModernToast {
     switch (type) {
       case ToastType.success:
         return _ToastConfig(
-          backgroundColor: AppTheme.successColor.withOpacity(0.15),
+          backgroundColor: AppTheme.successColor.withValues(alpha: 0.15),
           borderColor: AppTheme.successColor,
           textColor: AppTheme.successColor,
           icon: Icons.check_circle_outline,
         );
       case ToastType.error:
         return _ToastConfig(
-          backgroundColor: AppTheme.errorColor.withOpacity(0.15),
+          backgroundColor: AppTheme.errorColor.withValues(alpha: 0.15),
           borderColor: AppTheme.errorColor,
           textColor: AppTheme.errorColor,
           icon: Icons.error_outline,
         );
       case ToastType.warning:
         return _ToastConfig(
-          backgroundColor: AppTheme.warningColor.withOpacity(0.15),
+          backgroundColor: AppTheme.warningColor.withValues(alpha: 0.15),
           borderColor: AppTheme.warningColor,
           textColor: AppTheme.warningColor,
           icon: Icons.warning_outlined,
         );
       case ToastType.info:
         return _ToastConfig(
-          backgroundColor: AppTheme.primaryColor.withOpacity(0.15),
+          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
           borderColor: AppTheme.primaryColor,
           textColor: AppTheme.primaryColor,
           icon: Icons.info_outline,
@@ -233,7 +247,7 @@ class ToastWidget extends StatelessWidget {
             border: Border.all(color: borderColor, width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -245,7 +259,7 @@ class ToastWidget extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: borderColor.withOpacity(0.2),
+                  color: borderColor.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -285,7 +299,7 @@ class ToastWidget extends StatelessWidget {
       ),
     )
         .animate()
-        .slideY(begin: -1.0, duration: 400.ms, curve: Curves.elasticOut)
+        .slideY(begin: 1.0, duration: 400.ms, curve: Curves.elasticOut)
         .fadeIn(duration: 300.ms);
   }
 }
@@ -301,7 +315,7 @@ class LoadingOverlay {
 
     _currentOverlay = OverlayEntry(
       builder: (context) => Material(
-        color: Colors.black.withOpacity(0.7),
+        color: Colors.black.withValues(alpha: 0.7),
         child: Center(
           child: Container(
             padding: const EdgeInsets.all(24),
